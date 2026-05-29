@@ -22,6 +22,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
+
+import socket
+from datetime import datetime
+import github_push
+
 import aiohttp
 
 # ─── Logging ────────────────────────────────────────────────────────────────
@@ -40,14 +45,27 @@ TEST_URLS: list[tuple[str, str]] = [
     ("Google",     "http://www.gstatic.com/generate_204"),
     ("YouTube",    "https://www.youtube.com/generate_204"),
     ("Cloudflare", "http://cp.cloudflare.com/"),
-    ("Spotify",    "https://spclient.wg.spotify.com/"),
     ("X.com",      "https://x.com/"),
 ]
 
 # ─── Tunables ─────────────────────────────────────────────────────────────
-TOP_N             = 15      # keep best N configs in final output
+TOP_N             = 10      # keep best N configs in final output
 MAX_ERROR_RATE    = 0.10    # round-1 filter: drop configs with >10% errors
 EXTRA_ROUNDS      = 3       # latency rounds after the filter round
+PING_TRIES        = 5       # number of TCP ping attempts per config
+PING_MIN_SUCCESS  = 4       # minimum successful pings required to keep config
+URL_TEST_ROUNDS   = 5       # repeat URL tests this many times per config
+AUTOUPDATE_MINUTES = 120    # metadata value: autoupdate interval for final settings
+LOOP_INTERVAL_MINUTES = 90  # restart whole pipeline every 90 minutes
+# Allowed exit country codes and emoji/name mapping
+ALLOWED_COUNTRIES = {
+    "DE": ("Germany", "🇩🇪"),
+    "FI": ("Finland", "🇫🇮"),
+    "NL": ("Netherlands", "🇳🇱"),
+    "GB": ("United Kingdom", "🇬🇧"),
+    "US": ("United States", "🇺🇸"),
+    "CA": ("Canada", "🇨🇦"),
+}
 CONNECT_TIMEOUT   = 10.0    # seconds — TCP connect to proxy
 REQUEST_TIMEOUT   = 15.0    # seconds — full HTTP response
 MAX_CONCURRENT    = 10      # how many Xray processes run simultaneously
@@ -492,7 +510,7 @@ class XrayRunner:
             return None
 
     async def run_all_tests(self) -> None:
-        """Test all TEST_URLS and record results in self.cfg."""
+        """Test all TEST_URLS once and record results in self.cfg."""
         tasks = [self.test_url(label, url) for label, url in TEST_URLS]
         results = await asyncio.gather(*tasks)
         for ms in results:
@@ -501,6 +519,22 @@ class XrayRunner:
                 self.cfg.errors += 1
             else:
                 self.cfg.latencies.append(ms)
+
+    async def get_exit_country(self) -> Optional[str]:
+        """Return two-letter country code for the current exit IP (e.g. 'DE')."""
+        proxy_url = f"socks5://127.0.0.1:{self.socks_port}"
+        timeout = aiohttp.ClientTimeout(connect=CONNECT_TIMEOUT, total=REQUEST_TIMEOUT)
+        connector = aiohttp.TCPConnector(ssl=False)
+        try:
+            async with aiohttp.ClientSession(connector=connector) as session:
+                async with session.get("https://ipapi.co/json/", proxy=proxy_url, timeout=timeout) as resp:
+                    data = await resp.json()
+                    cc = data.get("country_code") or data.get("country")
+                    if isinstance(cc, str):
+                        return cc.upper()
+        except Exception:
+            return None
+        return None
 
 
 # ─── Semaphore-limited tester ─────────────────────────────────────────────
@@ -521,12 +555,53 @@ def _assign_ports(configs: list[Config]) -> dict[int, int]:
     return {i: SOCKS_PORT_BASE + i for i in range(len(configs))}
 
 
+def _extract_server_from_xray_cfg(xcfg: dict) -> Optional[tuple[str, int]]:
+    """Attempt to pull server address and port from an Xray outbound dict."""
+    try:
+        out = xcfg.get("outbounds", [])[0]
+        proto = out.get("protocol", "")
+        sets = out.get("settings", {})
+        if proto in ("vless", "vmess"):
+            vnext = sets.get("vnext", [])
+            if vnext:
+                addr = vnext[0].get("address")
+                port = int(vnext[0].get("port", 0))
+                return addr, port
+        if proto == "shadowsocks":
+            sv = sets.get("servers", [])[0]
+            return sv.get("address"), int(sv.get("port", 0))
+        if proto == "trojan":
+            sv = sets.get("servers", [])[0]
+            return sv.get("address"), int(sv.get("port", 0))
+    except Exception:
+        return None
+    return None
+
+
+async def tcp_ping(host: str, port: int, tries: int = PING_TRIES, timeout: float = 3.0) -> int:
+    """Attempt TCP connect `tries` times; return number of successful connects."""
+    success = 0
+    for _ in range(tries):
+        try:
+            fut = asyncio.open_connection(host, port)
+            reader, writer = await asyncio.wait_for(fut, timeout=timeout)
+            writer.close()
+            try:
+                await writer.wait_closed()
+            except Exception:
+                pass
+            success += 1
+        except Exception:
+            await asyncio.sleep(0.15)
+    return success
+
+
 # ─── Pipeline ────────────────────────────────────────────────────────────
 async def run_pipeline(sub_urls: list[str]) -> list[Config]:
     xray_bin = find_xray()
     log.info(f"Using Xray: {xray_bin}")
 
-    # 1 ── Download all subscriptions ─────────────────────────────────
+    # 1 ── Download all subscriptions
     connector = aiohttp.TCPConnector(limit=20, ssl=False)
     async with aiohttp.ClientSession(connector=connector) as session:
         batches = await asyncio.gather(*[fetch_subscription(u, session) for u in sub_urls])
@@ -545,50 +620,101 @@ async def run_pipeline(sub_urls: list[str]) -> list[Config]:
     if not configs:
         return []
 
+    # 2 ── TCP-connect filter (PING_TRIES)
+    log.info("=" * 55)
+    log.info("TCP ping filter — testing server connectivity")
+    log.info("=" * 55)
+    ping_tasks = []
+    ping_map = {}
+    for c in configs:
+        xcfg = build_xray_config(c.raw, SOCKS_PORT_BASE)
+        server = _extract_server_from_xray_cfg(xcfg) if xcfg else None
+        if not server:
+            ping_map[c.raw] = 0
+            continue
+        host, port = server
+        ping_tasks.append((c, host, port))
+
+    async def _run_ping_item(item):
+        c, host, port = item
+        try:
+            succ = await tcp_ping(host, port)
+        except Exception:
+            succ = 0
+        ping_map[c.raw] = succ
+
+    await asyncio.gather(*[_run_ping_item(it) for it in ping_tasks])
+
+    before = len(configs)
+    configs = [c for c in configs if ping_map.get(c.raw, 0) >= PING_MIN_SUCCESS]
+    log.info(f"✓ TCP filter: kept {len(configs)} / {before} configs (≥{PING_MIN_SUCCESS} successes)")
+    if not configs:
+        log.warning("No configs survived TCP ping filter")
+        return []
+
     sem = asyncio.Semaphore(MAX_CONCURRENT)
 
-    # 2 ── Round 1: error-rate filter ─────────────────────────────────
+    # 3 ── Exit-IP country check (only keep allowed countries)
     log.info("=" * 55)
-    log.info(f"Round 1 — URL test all {len(configs)} configs (error-rate filter)")
+    log.info("Checking exit IP country for each config")
     log.info("=" * 55)
 
     ports = _assign_ports(configs)
-    await asyncio.gather(*[
-        test_one(xray_bin, c, ports[i], sem)
-        for i, c in enumerate(configs)
-    ])
 
-    before = len(configs)
-    configs = [c for c in configs if c.error_rate <= MAX_ERROR_RATE]
-    log.info(f"✓ Kept {len(configs)} / {before}  (≤{MAX_ERROR_RATE*100:.0f}% error rate)")
+    async def _country_check(i, cfg):
+        port = ports[i]
+        try:
+            async with XrayRunner(xray_bin, cfg, port) as runner:
+                cc = await runner.get_exit_country()
+                return cc
+        except Exception:
+            return None
 
+    country_map = {}
+    tasks = [ _country_check(i, c) for i, c in enumerate(configs) ]
+    results = await asyncio.gather(*tasks)
+    kept = []
+    for c, cc in zip(configs, results):
+        if cc and cc in ALLOWED_COUNTRIES:
+            name, emoji = ALLOWED_COUNTRIES[cc]
+            c.name = f"{name} {emoji}"
+            kept.append(c)
+        else:
+            log.info(f"Dropping {c.name[:40]} — exit country: {cc}")
+
+    configs = kept
+    log.info(f"✓ Country filter: {len(configs)} configs remain")
     if not configs:
-        log.warning("No configs passed round 1!")
+        log.warning("No configs matched allowed countries")
         return []
 
-    # 3 ── Rounds 2-4: latency accumulation ───────────────────────────
-    for rnd in range(2, EXTRA_ROUNDS + 2):
-        log.info("=" * 55)
-        log.info(f"Round {rnd} — URL latency test ({len(configs)} configs)")
-        log.info("=" * 55)
-        for c in configs:
-            c.errors = 0
-            c.total  = 0
+    # 4 ── URL tests repeated URL_TEST_ROUNDS times to compute disruption%
+    log.info("=" * 55)
+    log.info(f"URL tests — repeating {URL_TEST_ROUNDS} rounds")
+    log.info("=" * 55)
+
+    for c in configs:
+        c.errors = 0
+        c.total = 0
+        c.latencies = []
+
+    for rnd in range(URL_TEST_ROUNDS):
+        log.info(f"URL test round {rnd+1}/{URL_TEST_ROUNDS}")
         ports = _assign_ports(configs)
         await asyncio.gather(*[
             test_one(xray_bin, c, ports[i], sem)
             for i, c in enumerate(configs)
         ])
 
-    # 4 ── Sort & pick top N ───────────────────────────────────────────
-    configs.sort(key=lambda c: c.avg_latency)
+    # compute disruption percentage and sort
+    configs.sort(key=lambda c: (c.error_rate, c.avg_latency))
     top = configs[:TOP_N]
 
     log.info("=" * 55)
-    log.info(f"Top {len(top)} configs (sorted by avg URL latency):")
+    log.info(f"Top {len(top)} configs (sorted by disruption then latency):")
     log.info("=" * 55)
     for i, c in enumerate(top, 1):
-        log.info(f"  {i:>2}. {c.avg_latency:7.1f} ms  err={c.error_rate*100:.0f}%  {c.name[:55]}")
+        log.info(f"  {i:>2}. drop%={c.error_rate*100:5.1f} latency={c.avg_latency:7.1f} ms  {c.name[:55]}")
 
     return top
 
@@ -599,6 +725,19 @@ def write_subscription(configs: list[Config], out_path: str) -> None:
     encoded = base64.b64encode(lines.encode()).decode()
     Path(out_path).write_text(encoded, encoding="utf-8")
     log.info(f"✅ Subscription written → {out_path}  ({len(configs)} configs)")
+    # Write metadata for autoupdate and human-readable list
+    meta = {
+        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "autoupdate_minutes": AUTOUPDATE_MINUTES,
+        "count": len(configs),
+        "items": [
+            {"name": c.name, "error_rate": c.error_rate, "avg_latency_ms": c.avg_latency}
+            for c in configs
+        ]
+    }
+    meta_path = Path(out_path).with_name(out_path + ".meta.json")
+    meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    log.info(f"✅ Metadata written → {meta_path}")
 
 
 # ─── Entry point ─────────────────────────────────────────────────────────
@@ -618,12 +757,22 @@ def load_sub_urls(config_file: str = "subscriptions.txt") -> list[str]:
 async def main():
     sub_urls = load_sub_urls()
     log.info(f"Loaded {len(sub_urls)} subscription(s)")
-    top = await run_pipeline(sub_urls)
-    if not top:
-        log.error("No configs to write. Aborting.")
-        sys.exit(1)
-    write_subscription(top, "best_configs.txt")
-    log.info("Done.")
+    while True:
+        try:
+            top = await run_pipeline(sub_urls)
+            if not top:
+                log.error("No configs to write. Will retry after delay.")
+            else:
+                write_subscription(top, "best_configs.txt")
+                # push to GitHub (reads config.env / env vars)
+                try:
+                    github_push.push_to_github()
+                except Exception as e:
+                    log.warning(f"GitHub push failed: {e}")
+        except Exception as e:
+            log.exception(f"Pipeline error: {e}")
+        log.info(f"Sleeping {LOOP_INTERVAL_MINUTES} minutes before next run...")
+        await asyncio.sleep(60 * LOOP_INTERVAL_MINUTES)
 
 
 if __name__ == "__main__":
