@@ -1,0 +1,6 @@
+# لینک‌های سابسکریپشن خود را اینجا وارد کنید (حداکثر 10 لینک)
+# هر خط یک URL - خطوط شروع با # نادیده گرفته می‌شوند
+
+# https://your-subscription-1.example.com/sub?token=xxx
+# https://your-subscription-2.example.com/sub
+# https://raw.githubusercontent.com/user/repo/main/sub.txt
