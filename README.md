@@ -1,141 +1,186 @@
-# VPN Subscription Tester 🚀
+# VPN Subscription Tester — راهنمای به‌روزرسانی‌شده
 
-اسکریپت پایتون برای دانلود، URL-test واقعی و فیلتر کانفیگ‌های Xray/Sing-box با پوش خودکار به GitHub.
+این پروژه اسکریپتی برای دانلود سابسکریپشن‌ها، تست واقعی URL‌ها از طریق هر کانفیگ (با اجرای یک پروسه Xray برای هر کانفیگ)، فیلتر و انتخاب بهترین کانفیگ‌ها و در نهایت پوش خودکار خروجی به GitHub است.
+
+نسخه فعلی ویژگی‌های زیر را انجام می‌دهد:
+
+- محدود کردن تعداد سابسکریپشن‌های دانلودی به اولین ۱۰ لینک موجود در `subscriptions.txt`.
+- استخراج کانفیگ‌های Xray/Sing-box/Clash/SS/Trojan از محتواهای base64 یا JSON.
+- یک فیلتر TCP پیش‌فرض: برای هر سرور ۵ تلاش TCP انجام می‌شود و فقط کانفیگ‌هایی که حداقل ۴ اتصال موفق داشته باشند نگه داشته می‌شوند.
+- اجرای Xray برای هر کانفیگ به‌صورت محلی و گرفتن IP خروجی، سپس نگهداری فقط کانفیگ‌هایی که IP خروجی مربوط به کشورهای مجاز است: آلمان (DE)، فنلاند (FI)، هلند (NL)، بریتانیا (GB)، آمریکا (US)، کانادا (CA). نام کانفیگ‌ها به «نام کشور + ایموجی پرچم» تغییر می‌کند.
+- تکرار تست URLها (`Google`, `YouTube`, `Cloudflare`, `X.com`) پنج بار برای هر کانفیگ و محاسبه درصد اختلال (drop%).
+- مرتب‌سازی بر اساس کمترین درصد اختلال سپس میانگین تأخیر و انتخاب `TOP_N` کانفیگ نهایی (پیش‌فرض 10).
+- نوشتن خروجی فشرده‌شده در `best_configs.txt` و یک فایل متادیتا `best_configs.txt.meta.json` شامل زمان تولید، تعداد آیتم‌ها، میانگین تأخیر و نرخ افت.
+- پوش خودکار به GitHub با استفاده از `github_push.py` (خواندن مقادیر از `config.env` یا متغیرهای محیطی).
+- اجرای مداوم: اسکریپت به‌صورت خودکار هر 90 دقیقه حلقه‌اش را تکرار می‌کند (بنابراین برای اجرای دائمی، کافیست آن را در پس‌زمینه یا به‌عنوان سرویس قرار دهید).
 
 ---
 
-## نحوه کار (Real URL Test)
-
-برخلاف ابزارهای ساده که فقط TCP ping می‌زنند، این اسکریپت:
-
-1. برای **هر کانفیگ** یک پروسه Xray مجزا اجرا می‌کند
-2. یک پورت SOCKS5 محلی منحصربه‌فرد به آن می‌دهد  
-3. درخواست‌های HTTP واقعی را از طریق آن پروکسی به ۵ هدف می‌فرستد
-4. تأخیر end-to-end واقعی را اندازه می‌گیرد
-
----
-
-## ساختار فایل‌ها
+**فایل‌ها**
 
 ```
-vpn-sub-tester/
-├── run.py              # نقطه ورود اصلی
-├── vpn_tester.py       # هسته: دانلود + URL-test + فیلتر
-├── github_push.py      # پوش خودکار به GitHub
+VPN-Subscription-Tester/
+├── run.py              # wrapper / entry (اجرا از این فایل ممکن است)
+├── vpn_tester.py       # هسته اصلی (تست، فیلتر، خروجی)
+├── github_push.py      # پوش به GitHub
 ├── subscriptions.txt   # لیست لینک‌های سابسکریپشن (حداکثر ۱۰)
-├── config.env          # تنظیمات GitHub
+├── config.env          # تنظیمات GitHub و گزینه‌های اختیاری
 ├── requirements.txt    # وابستگی‌های پایتون
-├── setup.sh            # نصب + راه‌اندازی cron
+├── setup.sh            # نصب وابستگی‌ها و راه‌اندازی (اختیاری)
 └── best_configs.txt    # خروجی نهایی (بعد از اجرا ساخته می‌شود)
 ```
 
 ---
 
-## پیش‌نیاز اصلی — نصب Xray-core
+پیش‌نیازها
+- Python 3.9+
+- کتابخانه‌های موجود در `requirements.txt` (با `pip install -r requirements.txt` نصب می‌شوند)
+- باینری `xray` در PATH یا تنظیم شده در `XRAY_BIN` در `config.env` (یا متغیر محیطی)
 
-اسکریپت به باینری `xray` نیاز دارد:
-
-### لینوکس / macOS
+نصب سریع
 ```bash
-# روش ۱: اسکریپت رسمی
-bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
-
-# روش ۲: دانلود مستقیم و قرار دادن در پوشه پروژه
-# https://github.com/XTLS/Xray-core/releases/latest
-# فایل xray را در کنار vpn_tester.py بگذارید
+# نصب وابستگی‌ها (در virtualenv توصیه می‌شود)
+python -m venv .venv
+source .venv/bin/activate    # یا on Windows: .\.venv\Scripts\activate
+pip install -r requirements.txt
 ```
 
-### مسیر سفارشی
-```bash
-export XRAY_BIN=/path/to/your/xray
+تنظیمات `config.env` (نمونه)
+```
+# TOKEN با دسترسی نوشتن به ریپو
+GITHUB_TOKEN=ghp_xxx...
+GITHUB_OWNER=your_github_user
+GITHUB_REPO=your_repo_name
+GITHUB_BRANCH=main
+OUTPUT_FILE=best_configs.txt
+REPO_DIR=./repo
+# مسیر اختیاری xray
+# XRAY_BIN=/home/you/bin/xray
 ```
 
----
-
-## نصب و راه‌اندازی
-
+اجرا دستی
 ```bash
-# ۱. نصب وابستگی‌ها و cron
-chmod +x setup.sh && ./setup.sh
+python vpn_tester.py
+```
+یا اگر می‌خواهید از run.py (در صورت وجود wrapper) استفاده کنید:
+```bash
+python run.py
+```
 
-# ۲. لینک‌های سابسکریپشن
-nano subscriptions.txt
+اسکریپت خودش بعد از هر بار اجرا منتظر `90` دقیقه می‌ماند و مجدداً مراحل را از ابتدا تکرار می‌کند؛ بنابراین کافیست آن را یکبار اجرا کنید و به‌صورت پس‌زمینه نگه دارید.
 
-# ۳. اطلاعات GitHub
+اجرای در پس‌زمینه (نمونه برای لینوکس)
+```bash
+# با nohup
+nohup python vpn_tester.py >/var/log/vpn_tester.log 2>&1 &
+
+# یا با tmux/screen
+tmux new -s vpntester 'python vpn_tester.py'
+```
+
+راه‌اندازی به‌عنوان سرویس systemd (پیشنهاد شده برای سرور)
+1. فایل سرویس: `/etc/systemd/system/vpn-tester.service`
+```
+[Unit]
+Description=VPN Subscription Tester
+After=network.target
+
+[Service]
+Type=simple
+User=youruser
+WorkingDirectory=/path/to/VPN-Subscription-Tester
+ExecStart=/path/to/python /path/to/VPN-Subscription-Tester/vpn_tester.py
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+```
+2. فعال‌سازی و استارت:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now vpn-tester.service
+sudo journalctl -u vpn-tester -f
+```
+
+کرون‌جاب
+از آن‌جایی که اسکریپت یک حلقه 90 دقیقه‌ای داخلی دارد، بهترین روش این است که آن را با `@reboot` در کرون اجرا کنید تا پس از ریبوت سرور خودکار بالا بیاید، یا از systemd استفاده کنید. اگر می‌خواهید هر 90 دقیقه کرون را جداگانه اجرا کنید، کرون مستقیماً 90 دقیقه را پشتیبانی نمی‌کند؛ دو گزینه دارید:
+
+گزینه A — اجرا در بوت و نگهداری دائمی (پیشنهادی):
+```bash
+# ویرایش crontab کاربر
+crontab -e
+
+# اضافه کنید (شروع در بوت و اجرای در پس‌زمینه):
+@reboot sleep 30 && /usr/bin/nohup /usr/bin/python /path/to/VPN-Subscription-Tester/vpn_tester.py >/path/to/vpn_tester.log 2>&1 &
+```
+
+گزینه B — استفاده از systemd timer برای زمان‌بندی 90 دقیقه‌ای (دقیق‌تر):
+1. فایل سرویس `/etc/systemd/system/vpn-tester-run.service` (موقتی، اجرا یکبار):
+```
+[Unit]
+Description=One-shot run of VPN tester
+
+[Service]
+Type=oneshot
+User=youruser
+WorkingDirectory=/path/to/VPN-Subscription-Tester
+ExecStart=/path/to/python /path/to/VPN-Subscription-Tester/vpn_tester.py
+```
+
+2. فایل تایمر `/etc/systemd/system/vpn-tester-run.timer`:
+```
+[Unit]
+Description=Run VPN tester every 90 minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=90min
+Unit=vpn-tester-run.service
+
+[Install]
+WantedBy=timers.target
+```
+
+3. فعال‌سازی:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now vpn-tester-run.timer
+sudo systemctl status vpn-tester-run.timer
+```
+
+نکته: اگر از تایمر استفاده کنید، اسکریپت نباید وارد حلقه داخلی شود (یا باید حالت oneshot اضافه شود). در نسخه فعلی اسکریپت یک حلقه 90 دقیقه‌ای داخلی دارد؛ بنابراین از `@reboot` یا systemd service استفاده کنید تا فقط یک نمونه همیشه اجرا شود.
+
+پوش به GitHub
+برای پوش خودکار نیاز است `config.env` یا متغیرهای محیطی حاوی `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO` باشد. `github_push.py` از این مقادیر استفاده می‌کند تا ریپو را clone/pull کرده، `best_configs.txt` را کپی کند و commit/push بزند.
+
+نمونه قدم‌ها برای ست‌آپ اولیه GitHub:
+```bash
+# 1. مقداردهی در config.env
 nano config.env
 
-# ۴. اجرای دستی
-python3 run.py
+# 2. اجرای دستی برای تست
+python github_push.py
 ```
 
----
+تذکرات ایمنی
+- مقدار `GITHUB_TOKEN` را با دقت نگه دارید و در مخزن عمومی قرار ندهید.
+- اگر سرور شما فایروال یا محدودیت اتصال دارد، ممکن است TCP-ping یا تست URL ناکام بماند — مقادیر `PING_TRIES`, `PING_MIN_SUCCESS`, `MAX_CONCURRENT` را مطابق نیاز تغییر دهید.
 
-## جریان کار
+پایان
+اگر مایل هستید من می‌توانم:
+- یک نمونه `config.env.example` بسازم با توضیحات.
+- systemd unit/timer نمونه را برای مسیرهای شما تولید کنم.
+- `setup.sh` را بررسی و طوری ویرایش کنم که virtualenv بسازد و سرویس را ثبت کند.
 
-```
-دانلود همه سابسکریپشن‌ها (حداکثر ۱۰)
-            ↓
-    حذف URI های تکراری
-            ↓
-  Round 1 — هر کانفیگ:
-    ├── اجرای Xray روی پورت محلی
-    ├── ارسال HTTP به Google, YouTube, Cloudflare, Spotify, X
-    └── حذف کانفیگ‌هایی با خطای بیش از ۱۰٪
-            ↓
-  Round 2, 3, 4 — تکرار برای دقت بیشتر
-            ↓
-  مرتب‌سازی بر اساس میانگین تأخیر
-            ↓
-  ذخیره ۱۵ کانفیگ برتر → best_configs.txt
-            ↓
-  git commit + push به GitHub
-```
+مواردی که من اصلاح کردم در کد فعلی:
+- فیلتر TCP (۵ تلاش، حداقل ۴ موفق).
+- فیلتر کشور خروجی و تغییر نام کانفیگ‌ها به نام کشور + ایموجی.
+- حذف تست Spotify و متمرکز شدن روی Google, YouTube, Cloudflare, X.com.
+- اضافه شدن متادیتا (`best_configs.txt.meta.json`).
+- حلقه داخلی ۹۰ دقیقه‌ای و پوش خودکار به GitHub پس از نوشتن خروجی.
 
----
-
-## اهداف تست
-
-| سرویس | URL |
-|---|---|
-| Google | http://www.gstatic.com/generate_204 |
-| YouTube | https://www.youtube.com/generate_204 |
-| Cloudflare | http://cp.cloudflare.com/ |
-| Spotify | https://spclient.wg.spotify.com/ |
-| X.com | https://x.com/ |
-
----
-
-## تنظیمات قابل تغییر در `vpn_tester.py`
-
-| متغیر | پیش‌فرض | توضیح |
-|---|---|---|
-| `TOP_N` | 15 | تعداد کانفیگ نهایی |
-| `MAX_ERROR_RATE` | 0.10 | حداکثر نرخ خطا در Round 1 |
-| `EXTRA_ROUNDS` | 3 | راندهای اضافی تأخیر |
-| `MAX_CONCURRENT` | 10 | تعداد Xray process های همزمان |
-| `CONNECT_TIMEOUT` | 10.0 | تایم‌اوت اتصال (ثانیه) |
-| `REQUEST_TIMEOUT` | 15.0 | تایم‌اوت کامل درخواست (ثانیه) |
-| `XRAY_STARTUP_WAIT` | 1.5 | زمان انتظار بعد از اجرای Xray |
-
-> ⚠️ اگر تعداد کانفیگ‌ها زیاد است، `MAX_CONCURRENT` را کاهش دهید تا از مصرف بیش از حد RAM جلوگیری شود.
-
----
-
-## کرون‌جاب (هر روز ساعت ۴ صبح)
-
-```bash
-crontab -l   # مشاهده
-crontab -e   # ویرایش / حذف
-```
-
----
-
-## استفاده از فایل خروجی
-
-`best_configs.txt` یک سابسکریپشن base64 استاندارد است. این لینک raw را در کلاینت وارد کنید:
-
-```
-https://raw.githubusercontent.com/YOUR_USER/YOUR_REPO/main/best_configs.txt
-```
-
-سازگار با: **v2rayNG، Hiddify، Shadowrocket، Nekoray، Streisand**
+اگر می‌خواهید ادامه دهم، کدام یک را اولویت بدهیم؟
+1) ساخت `config.env.example` و امن‌سازی دستورالعمل‌ها
+2) تولید فایل systemd/service و timer مخصوص مسیر شما
+3) تغییر نحوه push به استفاده از `gh` CLI به‌جای URL با توکن
