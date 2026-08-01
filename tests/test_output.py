@@ -74,9 +74,9 @@ def test_write_subscription_roundtrip(tmp_path):
     write_subscription(configs, s)
     out = (tmp_path / "best.txt").read_text(encoding="utf-8")
     decoded = _b64.b64decode(out).decode()
-    # the URI is rewritten with a URL-encoded fragment name (Country | NN)
+    # the URI is rewritten with a URL-encoded fragment name (Flag Country | NN)
     assert decoded.startswith("vless://x@a.com:443#")
-    assert unquote(decoded.split("#", 1)[1]) == "Germany | 01"
+    assert unquote(decoded.split("#", 1)[1]) == "🇩🇪 Germany | 01"
     meta = json.loads((tmp_path / "best.meta.json").read_text(encoding="utf-8"))
     assert meta["count"] == 1
 
@@ -88,4 +88,4 @@ def test_build_metadata_includes_index(tmp_path):
     meta = build_metadata([c], s)
     item = meta["items"][0]
     assert item["index"] == 3
-    assert item["name"] == "Germany | 03"
+    assert item["name"] == "🇩🇪 Germany | 03"

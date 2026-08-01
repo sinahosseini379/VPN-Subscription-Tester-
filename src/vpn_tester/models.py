@@ -62,7 +62,8 @@ class Config:
 
     def display_name(self) -> str:
         if self.index:
-            return f"{self.country_name or self.country} | {self.index:02d}"
+            flag_part = f"{self.flag} " if self.flag else ""
+            return f"{flag_part}{self.country_name or self.country} | {self.index:02d}"
         if self.flag:
             return f"{self.country_name or self.country} {self.flag}".strip()
         return self.name or self.uri[:50]
