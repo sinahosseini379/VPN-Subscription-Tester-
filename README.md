@@ -76,11 +76,15 @@ The image bundles the latest Xray-core and runs the loop with a healthcheck.
 
 ## Config knobs (config.env)
 
-`TOP_N`, `URL_TEST_ROUNDS`, `TCP_PING_TRIES`, `TCP_PING_MIN_SUCCESS`,
-`MAX_ERROR_RATE`, `LOOP_INTERVAL_MINUTES`, `MAX_CONCURRENT`,
-`MAX_SUBSCRIPTION_URLS`, `ALLOWED_COUNTRIES`, `GEOIP_PROVIDERS`,
+`CONFIGS_PER_COUNTRY` (best N per allowed country, in list order), `URL_TEST_ROUNDS`,
+`TCP_PING_TRIES`, `TCP_PING_MIN_SUCCESS`, `MAX_ERROR_RATE`,
+`LOOP_INTERVAL_MINUTES`, `MAX_CONCURRENT`, `MAX_SUBSCRIPTION_URLS`,
+`ALLOWED_COUNTRIES` (default `DE,FI,NL,GB,US,TR`), `GEOIP_PROVIDERS`,
 `XRAY_BIN`, `OUTPUT_FILE`, `METADATA_FILE`, `GITHUB_*`, `ALERT_WEBHOOK`
 (Telegram or ntfy), `TEST_URLS`.
+
+The final output contains up to `CONFIGS_PER_COUNTRY` best configs for each
+allowed country, listed in `ALLOWED_COUNTRIES` order.
 
 ## Security notes
 

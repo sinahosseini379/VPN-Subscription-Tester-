@@ -45,7 +45,7 @@ DEFAULT_ALLOWED_COUNTRIES: dict[str, tuple[str, str]] = {
     "NL": ("Netherlands", "🇳🇱"),
     "GB": ("United Kingdom", "🇬🇧"),
     "US": ("United States", "🇺🇸"),
-    "CA": ("Canada", "🇨🇦"),
+    "TR": ("Turkey", "🇹🇷"),
 }
 
 DEFAULT_GEOIP_PROVIDERS: list[str] = [
@@ -65,7 +65,7 @@ class Settings:
     """All tunables for the tester, resolved from defaults < config.env < env."""
 
     # -- Pipeline behaviour -------------------------------------------------
-    top_n: int = 10
+    configs_per_country: int = 2
     url_test_rounds: int = 5
     tcp_ping_tries: int = 5
     tcp_ping_min_success: int = 4
@@ -174,7 +174,7 @@ class Settings:
         providers = ([u.strip() for u in geo_raw.split(",") if u.strip()]) if geo_raw else None
 
         return cls(
-            top_n=_i("TOP_N", cls.top_n),
+            configs_per_country=_i("CONFIGS_PER_COUNTRY", cls.configs_per_country),
             url_test_rounds=_i("URL_TEST_ROUNDS", cls.url_test_rounds),
             tcp_ping_tries=_i("TCP_PING_TRIES", cls.tcp_ping_tries),
             tcp_ping_min_success=_i("TCP_PING_MIN_SUCCESS", cls.tcp_ping_min_success),

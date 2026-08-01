@@ -35,17 +35,19 @@ def test_load_env_file(tmp_path):
 
 def test_settings_defaults():
     s = Settings()
-    assert s.top_n == 10
+    assert s.configs_per_country == 2
     assert s.max_concurrent == 10
     assert "US" in s.allowed_countries
+    assert "TR" in s.allowed_countries
+    assert "CA" not in s.allowed_countries
 
 
 def test_settings_from_env_override(tmp_path, monkeypatch):
     env = tmp_path / "config.env"
-    env.write_text("TOP_N=3\nMAX_CONCURRENT=2\n", encoding="utf-8")
+    env.write_text("CONFIGS_PER_COUNTRY=3\nMAX_CONCURRENT=2\n", encoding="utf-8")
     monkeypatch.setenv("XRAY_BIN", "/custom/xray")
     s = Settings.from_env(env, environ={})
-    assert s.top_n == 3
+    assert s.configs_per_country == 3
     assert s.max_concurrent == 2
     assert s.xray_bin == "/custom/xray"  # real env var wins
 

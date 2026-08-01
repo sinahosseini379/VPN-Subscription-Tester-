@@ -142,7 +142,11 @@ async def url_test_round(
 
 
 def select_top(configs: list[Config], settings: Settings) -> list[Config]:
-    """Filter out configs with too many errors, then sort and take TOP_N."""
+    """Drop configs with too many errors, then take the best N per country.
+
+    Keeps `configs_per_country` best configs for every allowed country, in the
+    order countries appear in `settings.allowed_countries`.
+    """
     candidates = [c for c in configs if c.error_rate <= settings.max_error_rate]
     dropped = len(configs) - len(candidates)
     if dropped:
@@ -151,8 +155,13 @@ def select_top(configs: list[Config], settings: Settings) -> list[Config]:
             dropped,
             settings.max_error_rate * 100,
         )
-    candidates.sort(key=lambda c: (c.error_rate, c.avg_latency))
-    return candidates[: settings.top_n]
+
+    result: list[Config] = []
+    for cc in settings.allowed_countries:
+        pool = [c for c in candidates if c.country == cc]
+        pool.sort(key=lambda c: (c.error_rate, c.avg_latency))
+        result.extend(pool[: settings.configs_per_country])
+    return result
 
 
 async def run_pipeline(sub_urls: list[str], xray_bin: str, settings: Settings) -> list[Config]:
