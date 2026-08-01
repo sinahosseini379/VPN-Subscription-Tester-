@@ -1,13 +1,15 @@
 {
   "version": "2.3.0",
-  "generated_at": "2026-08-01T18:27:13+00:00",
-  "count": 6,
-  "avg_latency_ms": 631.78,
+  "generated_at": "2026-08-01T19:16:26+00:00",
+  "count": 9,
+  "avg_latency_ms": 628.86,
   "avg_error_rate": 0.0,
   "by_country": {
     "DE": 2,
+    "FI": 1,
     "NL": 2,
-    "US": 2
+    "US": 2,
+    "TR": 2
   },
   "targets": [
     {
@@ -38,9 +40,9 @@
       "country": "DE",
       "error_rate": 0.0,
       "weighted_error_rate": 0.0,
-      "avg_latency_ms": 336.7,
-      "p50_ms": 272.85,
-      "p95_ms": 664.86,
+      "avg_latency_ms": 1262.58,
+      "p50_ms": 416.6,
+      "p95_ms": 3218.42,
       "samples": 20,
       "per_target": {
         "Google": {
@@ -67,9 +69,38 @@
       "country": "DE",
       "error_rate": 0.0,
       "weighted_error_rate": 0.0,
-      "avg_latency_ms": 1279.71,
-      "p50_ms": 603.85,
-      "p95_ms": 4912.45,
+      "avg_latency_ms": 1722.52,
+      "p50_ms": 434.84,
+      "p95_ms": 6368.07,
+      "samples": 20,
+      "per_target": {
+        "Google": {
+          "ok": 5,
+          "fail": 0
+        },
+        "YouTube": {
+          "ok": 5,
+          "fail": 0
+        },
+        "Cloudflare": {
+          "ok": 5,
+          "fail": 0
+        },
+        "X.com": {
+          "ok": 5,
+          "fail": 0
+        }
+      }
+    },
+    {
+      "name": "Finland 🇫🇮",
+      "protocol": "vless",
+      "country": "FI",
+      "error_rate": 0.0,
+      "weighted_error_rate": 0.0,
+      "avg_latency_ms": 326.98,
+      "p50_ms": 154.61,
+      "p95_ms": 789.78,
       "samples": 20,
       "per_target": {
         "Google": {
@@ -96,9 +127,9 @@
       "country": "NL",
       "error_rate": 0.0,
       "weighted_error_rate": 0.0,
-      "avg_latency_ms": 402.93,
-      "p50_ms": 315.28,
-      "p95_ms": 945.05,
+      "avg_latency_ms": 357.63,
+      "p50_ms": 273.76,
+      "p95_ms": 796.58,
       "samples": 20,
       "per_target": {
         "Google": {
@@ -125,9 +156,9 @@
       "country": "NL",
       "error_rate": 0.0,
       "weighted_error_rate": 0.0,
-      "avg_latency_ms": 435.1,
-      "p50_ms": 313.9,
-      "p95_ms": 1040.7,
+      "avg_latency_ms": 517.56,
+      "p50_ms": 286.99,
+      "p95_ms": 1515.85,
       "samples": 20,
       "per_target": {
         "Google": {
@@ -154,9 +185,9 @@
       "country": "US",
       "error_rate": 0.0,
       "weighted_error_rate": 0.0,
-      "avg_latency_ms": 647.58,
-      "p50_ms": 443.79,
-      "p95_ms": 1533.5,
+      "avg_latency_ms": 448.59,
+      "p50_ms": 196.76,
+      "p95_ms": 821.42,
       "samples": 20,
       "per_target": {
         "Google": {
@@ -183,9 +214,67 @@
       "country": "US",
       "error_rate": 0.0,
       "weighted_error_rate": 0.0,
-      "avg_latency_ms": 688.65,
-      "p50_ms": 519.14,
-      "p95_ms": 1557.16,
+      "avg_latency_ms": 460.22,
+      "p50_ms": 255.48,
+      "p95_ms": 1152.46,
+      "samples": 20,
+      "per_target": {
+        "Google": {
+          "ok": 5,
+          "fail": 0
+        },
+        "YouTube": {
+          "ok": 5,
+          "fail": 0
+        },
+        "Cloudflare": {
+          "ok": 5,
+          "fail": 0
+        },
+        "X.com": {
+          "ok": 5,
+          "fail": 0
+        }
+      }
+    },
+    {
+      "name": "Turkey 🇹🇷",
+      "protocol": "vless",
+      "country": "TR",
+      "error_rate": 0.0,
+      "weighted_error_rate": 0.0,
+      "avg_latency_ms": 244.82,
+      "p50_ms": 116.34,
+      "p95_ms": 496.84,
+      "samples": 20,
+      "per_target": {
+        "Google": {
+          "ok": 5,
+          "fail": 0
+        },
+        "YouTube": {
+          "ok": 5,
+          "fail": 0
+        },
+        "Cloudflare": {
+          "ok": 5,
+          "fail": 0
+        },
+        "X.com": {
+          "ok": 5,
+          "fail": 0
+        }
+      }
+    },
+    {
+      "name": "Turkey 🇹🇷",
+      "protocol": "vless",
+      "country": "TR",
+      "error_rate": 0.0,
+      "weighted_error_rate": 0.0,
+      "avg_latency_ms": 318.87,
+      "p50_ms": 107.92,
+      "p95_ms": 857.31,
       "samples": 20,
       "per_target": {
         "Google": {
