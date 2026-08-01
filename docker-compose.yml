@@ -5,9 +5,11 @@ services:
     restart: unless-stopped
     env_file:
       - config.env
+    ports:
+      - "30445:30445"
     volumes:
-      - ./config.env:/app/config.env:ro
-      - ./subscriptions.txt:/app/subscriptions.txt:ro
+      - ./config.env:/app/config.env
+      - ./subscriptions.txt:/app/subscriptions.txt
       - ./output:/app/output
     command: ["vpn-tester"]
     healthcheck:

@@ -4,19 +4,24 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import datetime
 import logging
 import shutil
 import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from . import __version__
 from .config import load_settings
 from .github_push import push_to_github
 from .output import write_subscription
 from .pipeline import run_pipeline
+from .runtime import (
+    LogCapture,
+    RunCoordinator,
+    reporter,
+    seconds_until_next_run,
+)
+from .web import start_dashboard
 
 log = logging.getLogger("vpn_tester")
 
@@ -37,6 +42,8 @@ def setup_logging(settings, verbose: bool) -> None:
     logging.basicConfig(
         level=level, format="%(asctime)s [%(levelname)s] %(message)s", handlers=handlers
     )
+    # Mirror every log line into the dashboard's ring buffer.
+    logging.getLogger().addHandler(LogCapture(reporter))
 
 
 def find_xray(settings) -> str:
@@ -81,72 +88,57 @@ def load_sub_urls(settings) -> list[str]:
 
 
 async def run_once(settings, *, do_push: bool) -> bool:
+    if reporter.status == "running":
+        log.warning("A run is already in progress; skipping this one.")
+        return False
+
+    reporter.begin_run("pipeline run")
     sub_urls = load_sub_urls(settings)
     log.info("Loaded %d subscription(s)", len(sub_urls))
-
-    top = await run_pipeline(sub_urls, find_xray(settings), settings)
-    if not top:
-        log.error("No configs survived; nothing written.")
-        return False
-
-    if len(top) < settings.alert_min_configs:
-        log.warning(
-            "Only %d configs survived (< ALERT_MIN_CONFIGS=%d); "
-            "refusing to overwrite the published output.",
-            len(top),
-            settings.alert_min_configs,
-        )
-        return False
-
-    write_subscription(top, settings)
-
-    if do_push:
-        try:
-            ok = await push_to_github(settings)
-            if not ok:
-                log.error("GitHub push failed after retries.")
-                return False
-        except ValueError as exc:
-            log.error("%s (set GITHUB_* in config.env)", exc)
+    try:
+        top = await run_pipeline(sub_urls, find_xray(settings), settings)
+        if not top:
+            log.error("No configs survived; nothing written.")
+            reporter.finish(False)
             return False
-    return True
 
+        if len(top) < settings.alert_min_configs:
+            log.warning(
+                "Only %d configs survived (< ALERT_MIN_CONFIGS=%d); "
+                "refusing to overwrite the published output.",
+                len(top),
+                settings.alert_min_configs,
+            )
+            reporter.finish(False)
+            return False
 
-def seconds_until_next_run(
-    schedule_time: str,
-    now: datetime.datetime | None = None,
-    tz_name: str = "Asia/Tehran",
-) -> float:
-    """Seconds until the next occurrence of HH:MM in the given timezone.
+        meta = write_subscription(top, settings)
 
-    `now` defaults to the current UTC instant; a naive `now` is treated as
-    UTC. Raises ValueError for malformed times or unknown timezones. If the
-    time already passed in that timezone, the target is the same time tomorrow.
-    """
-    now = now or datetime.datetime.now(datetime.timezone.utc)
-    if now.tzinfo is None:
-        now = now.replace(tzinfo=datetime.timezone.utc)
-    try:
-        tz = ZoneInfo(tz_name)
-    except ZoneInfoNotFoundError:
-        raise ValueError(f"Unknown timezone {tz_name!r}") from None
-
-    try:
-        hour, minute = (int(p) for p in schedule_time.split(":", 1))
-    except (ValueError, TypeError):
-        raise ValueError(f"Invalid SCHEDULE_TIME {schedule_time!r}: expected 'HH:MM'") from None
-    if not (0 <= hour <= 23 and 0 <= minute <= 59):
-        raise ValueError(f"Invalid SCHEDULE_TIME {schedule_time!r}: hour 0-23, minute 0-59")
-
-    now_tz = now.astimezone(tz)
-    target = now_tz.replace(hour=hour, minute=minute, second=0, microsecond=0)
-    target = target.astimezone(tz)
-    if target <= now_tz:
-        target = (target + datetime.timedelta(days=1)).astimezone(tz)
-    return (target - now_tz).total_seconds()
+        if do_push:
+            try:
+                ok = await push_to_github(settings)
+                if not ok:
+                    log.error("GitHub push failed after retries.")
+                    reporter.finish(False, meta)
+                    return False
+            except ValueError as exc:
+                log.error("%s (set GITHUB_* in config.env)", exc)
+                reporter.finish(False, meta)
+                return False
+        reporter.finish(True, meta)
+        return True
+    except Exception:
+        log.exception("Pipeline error")
+        reporter.finish(False)
+        raise
 
 
 async def _loop(settings, *, do_push: bool) -> None:
+    coordinator = RunCoordinator(settings, run_once)
+
+    if settings.dashboard_enabled:
+        await start_dashboard(settings, coordinator, settings.config_file)
+
     while True:
         try:
             wait = seconds_until_next_run(settings.schedule_time, tz_name=settings.timezone)
@@ -159,13 +151,19 @@ async def _loop(settings, *, do_push: bool) -> None:
             settings.timezone,
             int(wait),
         )
-        await asyncio.sleep(wait)
+        try:
+            await asyncio.wait_for(coordinator.schedule_changed.wait(), timeout=wait)
+            coordinator.schedule_changed.clear()
+            log.info("Schedule changed; recomputing next run time.")
+            continue
+        except asyncio.TimeoutError:
+            pass
+
         try:
             ok = await run_once(settings, do_push=do_push)
             if not ok and settings.alert_webhook:
                 await _send_alert(settings, "VPN tester run produced no usable output.")
         except Exception:
-            log.exception("Pipeline error")
             if settings.alert_webhook:
                 await _send_alert(settings, "VPN tester pipeline crashed.")
 
@@ -196,10 +194,16 @@ def cli(argv=None) -> int:
     )
     parser.add_argument("--once", action="store_true", help="run a single pipeline and exit")
     parser.add_argument("--no-push", action="store_true", help="skip the GitHub push step")
+    parser.add_argument("--no-dashboard", action="store_true", help="disable the web dashboard")
+    parser.add_argument("--port", type=int, help="override DASHBOARD_PORT")
     parser.add_argument("--verbose", action="store_true", help="debug logging")
     args = parser.parse_args(argv)
 
     settings = load_settings(args.config)
+    if args.no_dashboard:
+        settings.dashboard_enabled = False
+    if args.port:
+        settings.dashboard_port = args.port
     setup_logging(settings, verbose=args.verbose)
 
     do_push = not args.no_push

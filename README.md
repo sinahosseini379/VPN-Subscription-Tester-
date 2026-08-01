@@ -9,20 +9,21 @@ with a tested, configurable, container-friendly package.
 
 ## What changed vs v1
 
-| Area | v1 | v2 | v2.1 |
-|---|---|---|---|
-| GitHub push | `git` with the token embedded in the remote URL (leaks into `.git/config` & logs) | **GitHub Contents API**, Bearer header only — token never touches disk | nested output paths supported |
-| SOCKS proxy | — | broken: aiohttp's `proxy=` only speaks HTTP | **aiohttp-socks `ProxyConnector`** with `rdns=True` (DNS stays in-tunnel) |
-| Country check | unbounded process spawn | concurrency-limited by `MAX_CONCURRENT` | — |
-| Xray startup | fixed 1.5s sleep | **readiness polling** until SOCKS accepts | — |
-| URL test | any HTTP status counted as success | only **2xx/3xx** validated | weighted targets + per-target stats |
-| TCP pre-filter | unbounded | — | **concurrency-capped** (`TCP_CONCURRENCY`) + `MAX_CONFIGS` cap |
-| Base64 decode | — | fragile padding (`text + "=="`) | tolerant padding + URL-safe fallback |
-| Publish safety | overwrites repo on every run | — | `ALERT_MIN_CONFIGS` guard refuses to overwrite on bad runs |
-| TLS | strict (`allowInsecure=False`) | — | `ALLOW_INSECURE` (default on) avoids false negatives |
-| Protocols | vless/vmess/trojan/ss only | — | **+ hysteria2 (`hy2://`, `hysteria2://`)** incl. salamander obfs |
-| Unused tunables | `MAX_ERROR_RATE`, `EXTRA_ROUNDS` dead code | wired up / removed | `ALERT_MIN_CONFIGS` now enforced |
-| Tests / CI / Docker | none | pytest + ruff + GitHub Actions + Dockerfile | + real SOCKS5 regression test |
+| Area | v1 | v2 | v2.1 | v2.3 |
+|---|---|---|---|---|
+| GitHub push | `git` with the token embedded in the remote URL (leaks into `.git/config` & logs) | **GitHub Contents API**, Bearer header only — token never touches disk | nested output paths supported | — |
+| SOCKS proxy | — | broken: aiohttp's `proxy=` only speaks HTTP | **aiohttp-socks `ProxyConnector`** with `rdns=True` (DNS stays in-tunnel) | — |
+| Country check | unbounded process spawn | concurrency-limited by `MAX_CONCURRENT` | — | — |
+| Xray startup | fixed 1.5s sleep | **readiness polling** until SOCKS accepts | — | — |
+| URL test | any HTTP status counted as success | only **2xx/3xx** validated | weighted targets + per-target stats | — |
+| TCP pre-filter | unbounded | — | **concurrency-capped** (`TCP_CONCURRENCY`) + `MAX_CONFIGS` cap | — |
+| Base64 decode | — | fragile padding (`text + "=="`) | tolerant padding + URL-safe fallback | — |
+| Publish safety | overwrites repo on every run | — | `ALERT_MIN_CONFIGS` guard refuses to overwrite on bad runs | — |
+| TLS | strict (`allowInsecure=False`) | — | `ALLOW_INSECURE` (default on) avoids false negatives | — |
+| Protocols | vless/vmess/trojan/ss only | — | **+ hysteria2 (`hy2://`, `hysteria2://`)** incl. salamander obfs | — |
+| Unused tunables | `MAX_ERROR_RATE`, `EXTRA_ROUNDS` dead code | wired up / removed | `ALERT_MIN_CONFIGS` now enforced | — |
+| Tests / CI / Docker | none | pytest + ruff + GitHub Actions + Dockerfile | + real SOCKS5 regression test | — |
+| Web UI | none | — | — | **dashboard on `:30445`** (config list + copy, manual run, progress/logs, subscription & schedule editing) |
 
 ## Layout
 
@@ -38,6 +39,8 @@ src/vpn_tester/
 ├── pipeline.py      # orchestration
 ├── output.py        # best_configs.txt (base64) + meta.json
 ├── github_push.py   # secure GitHub push (Contents API)
+├── runtime.py       # live progress reporter + run coordinator (single-flight)
+├── web.py           # dashboard (web UI) + JSON API
 └── main.py          # CLI: vpn-tester
 ```
 
@@ -59,11 +62,27 @@ python -m vpn_tester.main --once
 python -m vpn_tester.main
 ```
 
+## Dashboard
+
+In loop mode the process serves a web dashboard on **port 30445**
+(`http://<server-ip>:30445`). From it you can:
+
+- see the final config list and **copy any config** individually
+- trigger a **manual run** at any moment
+- watch a **progress bar + live logs** while a run is in progress
+- view, **add and remove** subscription URLs
+- change the **automatic run time / timezone** (persisted to `config.env`)
+
+Disable it with `DASHBOARD_ENABLED=false` (or `--no-dashboard`) and change the
+port with `DASHBOARD_PORT` (or `--port N`).
+
 ### CLI
 
 ```
 vpn-tester --once         run a single pipeline then exit
 vpn-tester --no-push      skip the GitHub upload
+vpn-tester --no-dashboard disable the web dashboard
+vpn-tester --port N       override DASHBOARD_PORT
 vpn-tester --config PATH  alternate env file
 vpn-tester --verbose      debug logging
 ```
@@ -89,7 +108,8 @@ The image bundles the latest Xray-core and runs the loop with a healthcheck.
 `XRAY_BIN`, `OUTPUT_FILE`, `METADATA_FILE`, `GITHUB_*`, `ALERT_WEBHOOK`
 (Telegram or ntfy), `ALERT_MIN_CONFIGS` (refuses to publish below this many
 configs), `TEST_URLS` (`Label,URL[,weight]` separated by `|`; weight changes
-how much a target counts toward the final score).
+how much a target counts toward the final score),
+`DASHBOARD_ENABLED` / `DASHBOARD_HOST` / `DASHBOARD_PORT` (default `30445`).
 
 The final output contains up to `CONFIGS_PER_COUNTRY` best configs for each
 allowed country, listed in `ALLOWED_COUNTRIES` order.

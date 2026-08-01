@@ -120,6 +120,14 @@ class Settings:
     alert_webhook: str = ""  # Telegram bot API or ntfy URL
     alert_min_configs: int = 3  # alert if fewer than this many configs survive
 
+    # -- Dashboard (web UI served alongside the scheduler loop) -------------
+    dashboard_enabled: bool = True
+    dashboard_host: str = "0.0.0.0"
+    dashboard_port: int = 30445
+
+    # -- Runtime bookkeeping -------------------------------------------------
+    config_file: str = "config.env"  # env file used to load settings
+
     @classmethod
     def from_env(
         cls, env_file: str | os.PathLike = "config.env", environ: Mapping[str, str] | None = None
@@ -217,6 +225,10 @@ class Settings:
             github_files=gh_files or DEFAULT_GITHUB_FILES,
             alert_webhook=_s("ALERT_WEBHOOK", cls.alert_webhook),
             alert_min_configs=_i("ALERT_MIN_CONFIGS", cls.alert_min_configs),
+            dashboard_enabled=_b("DASHBOARD_ENABLED", cls.dashboard_enabled),
+            dashboard_host=_s("DASHBOARD_HOST", cls.dashboard_host),
+            dashboard_port=_i("DASHBOARD_PORT", cls.dashboard_port),
+            config_file=str(env_file),
         )
 
 

@@ -11,6 +11,14 @@ from .config import Settings
 from .geoip import GeoCache
 from .models import Config
 from .parsers import is_supported, parse_uri
+from .runtime import (
+    STAGE_COUNTRY,
+    STAGE_DOWNLOAD,
+    STAGE_FINALIZE,
+    STAGE_TCP,
+    STAGE_URL_TESTS,
+    reporter,
+)
 from .subscription import fetch_subscription
 from .tcp_ping import tcp_ping
 from .xray_runner import XrayRunner
@@ -20,6 +28,7 @@ log = logging.getLogger(__name__)
 
 async def download_configs(sub_urls: list[str], settings: Settings) -> list[Config]:
     """Download all subscriptions concurrently and dedupe into Config objects."""
+    reporter.set_stage(STAGE_DOWNLOAD, f"downloading {len(sub_urls)} subscription(s)")
     connector = aiohttp.TCPConnector(
         limit=min(20, max(4, settings.max_subscription_urls * 2)), ssl=False
     )
@@ -52,6 +61,7 @@ async def download_configs(sub_urls: list[str], settings: Settings) -> list[Conf
         log.warning("Truncating %d configs to MAX_CONFIGS=%d", len(configs), settings.max_configs)
         configs = configs[: settings.max_configs]
     log.info("Total unique configs: %d", len(configs))
+    reporter.set_progress(STAGE_DOWNLOAD, 1, 1, 0.0, 0.06)
     return configs
 
 
@@ -62,13 +72,19 @@ async def tcp_filter(configs: list[Config], settings: Settings) -> list[Config]:
     """
 
     sem = asyncio.Semaphore(min(settings.tcp_concurrency, max(1, len(configs))))
+    total = len(configs)
+    done = 0
 
     async def _ping(cfg: Config) -> int:
+        nonlocal done
         async with sem:
             try:
                 return await tcp_ping(cfg.server, cfg.port, settings.tcp_ping_tries)
             except Exception:
                 return 0
+            finally:
+                done += 1
+                reporter.set_progress(STAGE_TCP, done, total, 0.06, 0.22)
 
     results = await asyncio.gather(*[_ping(c) for c in configs])
     kept = [c for c, ok in zip(configs, results) if ok >= settings.tcp_ping_min_success]
@@ -95,15 +111,22 @@ async def country_filter(configs: list[Config], xray_bin: str, settings: Setting
 
     sem = asyncio.Semaphore(settings.max_concurrent)
     cache = GeoCache(settings.geoip_providers)
+    total = len(configs)
+    done = 0
 
     async def _check(i: int, cfg: Config) -> str | None:
+        nonlocal done
         port = settings.socks_port_base + i
         async with sem:
             try:
                 async with XrayRunner(xray_bin, cfg, port, settings) as runner:
-                    return await cache.get_country(runner.session, settings.connect_timeout)
+                    result = await cache.get_country(runner.session, settings.connect_timeout)
             except Exception:
-                return None
+                result = None
+            finally:
+                done += 1
+                reporter.set_progress(STAGE_COUNTRY, done, total, 0.22, 0.55)
+            return result
 
     tasks = [_check(i, c) for i, c in enumerate(configs)]
     results = await asyncio.gather(*tasks)
@@ -131,8 +154,11 @@ async def url_test_all(configs: list[Config], xray_bin: str, settings: Settings)
     sem = asyncio.Semaphore(settings.max_concurrent)
     rounds = settings.url_test_rounds
     targets = settings.test_urls
+    total = len(configs)
+    done = 0
 
     async def _test(i: int, cfg: Config) -> None:
+        nonlocal done
         port = settings.socks_port_base + i
         async with sem:
             try:
@@ -148,6 +174,9 @@ async def url_test_all(configs: list[Config], xray_bin: str, settings: Settings)
                 for label, _url, _weight in targets:
                     for _ in range(rounds):
                         cfg.record(label, False)
+            finally:
+                done += 1
+                reporter.set_progress(STAGE_URL_TESTS, done, total, 0.55, 0.95)
         # Totals are derived from recorded stats so error_rate is always exact.
         cfg.total = rounds * len(targets)
         cfg.errors = sum(st["fail"] for st in cfg.target_stats.values())
@@ -215,4 +244,6 @@ async def run_pipeline(sub_urls: list[str], xray_bin: str, settings: Settings) -
             c.display_name(),
         )
     log.info("=" * 55)
+    reporter.set_stage(STAGE_FINALIZE, "selecting best configs")
+    reporter.set_progress(STAGE_FINALIZE, 1, 1, 0.95, 1.0)
     return top
