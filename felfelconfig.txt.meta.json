@@ -1,0 +1,210 @@
+{
+  "version": "2.3.0",
+  "generated_at": "2026-08-01T18:27:13+00:00",
+  "count": 6,
+  "avg_latency_ms": 631.78,
+  "avg_error_rate": 0.0,
+  "by_country": {
+    "DE": 2,
+    "NL": 2,
+    "US": 2
+  },
+  "targets": [
+    {
+      "label": "Google",
+      "url": "http://www.gstatic.com/generate_204",
+      "weight": 1.0
+    },
+    {
+      "label": "YouTube",
+      "url": "https://www.youtube.com/generate_204",
+      "weight": 1.0
+    },
+    {
+      "label": "Cloudflare",
+      "url": "http://cp.cloudflare.com/",
+      "weight": 1.0
+    },
+    {
+      "label": "X.com",
+      "url": "https://x.com/",
+      "weight": 1.0
+    }
+  ],
+  "items": [
+    {
+      "name": "Germany 🇩🇪",
+      "protocol": "vless",
+      "country": "DE",
+      "error_rate": 0.0,
+      "weighted_error_rate": 0.0,
+      "avg_latency_ms": 336.7,
+      "p50_ms": 272.85,
+      "p95_ms": 664.86,
+      "samples": 20,
+      "per_target": {
+        "Google": {
+          "ok": 5,
+          "fail": 0
+        },
+        "YouTube": {
+          "ok": 5,
+          "fail": 0
+        },
+        "Cloudflare": {
+          "ok": 5,
+          "fail": 0
+        },
+        "X.com": {
+          "ok": 5,
+          "fail": 0
+        }
+      }
+    },
+    {
+      "name": "Germany 🇩🇪",
+      "protocol": "vless",
+      "country": "DE",
+      "error_rate": 0.0,
+      "weighted_error_rate": 0.0,
+      "avg_latency_ms": 1279.71,
+      "p50_ms": 603.85,
+      "p95_ms": 4912.45,
+      "samples": 20,
+      "per_target": {
+        "Google": {
+          "ok": 5,
+          "fail": 0
+        },
+        "YouTube": {
+          "ok": 5,
+          "fail": 0
+        },
+        "Cloudflare": {
+          "ok": 5,
+          "fail": 0
+        },
+        "X.com": {
+          "ok": 5,
+          "fail": 0
+        }
+      }
+    },
+    {
+      "name": "Netherlands 🇳🇱",
+      "protocol": "vless",
+      "country": "NL",
+      "error_rate": 0.0,
+      "weighted_error_rate": 0.0,
+      "avg_latency_ms": 402.93,
+      "p50_ms": 315.28,
+      "p95_ms": 945.05,
+      "samples": 20,
+      "per_target": {
+        "Google": {
+          "ok": 5,
+          "fail": 0
+        },
+        "YouTube": {
+          "ok": 5,
+          "fail": 0
+        },
+        "Cloudflare": {
+          "ok": 5,
+          "fail": 0
+        },
+        "X.com": {
+          "ok": 5,
+          "fail": 0
+        }
+      }
+    },
+    {
+      "name": "Netherlands 🇳🇱",
+      "protocol": "vless",
+      "country": "NL",
+      "error_rate": 0.0,
+      "weighted_error_rate": 0.0,
+      "avg_latency_ms": 435.1,
+      "p50_ms": 313.9,
+      "p95_ms": 1040.7,
+      "samples": 20,
+      "per_target": {
+        "Google": {
+          "ok": 5,
+          "fail": 0
+        },
+        "YouTube": {
+          "ok": 5,
+          "fail": 0
+        },
+        "Cloudflare": {
+          "ok": 5,
+          "fail": 0
+        },
+        "X.com": {
+          "ok": 5,
+          "fail": 0
+        }
+      }
+    },
+    {
+      "name": "United States 🇺🇸",
+      "protocol": "vless",
+      "country": "US",
+      "error_rate": 0.0,
+      "weighted_error_rate": 0.0,
+      "avg_latency_ms": 647.58,
+      "p50_ms": 443.79,
+      "p95_ms": 1533.5,
+      "samples": 20,
+      "per_target": {
+        "Google": {
+          "ok": 5,
+          "fail": 0
+        },
+        "YouTube": {
+          "ok": 5,
+          "fail": 0
+        },
+        "Cloudflare": {
+          "ok": 5,
+          "fail": 0
+        },
+        "X.com": {
+          "ok": 5,
+          "fail": 0
+        }
+      }
+    },
+    {
+      "name": "United States 🇺🇸",
+      "protocol": "vless",
+      "country": "US",
+      "error_rate": 0.0,
+      "weighted_error_rate": 0.0,
+      "avg_latency_ms": 688.65,
+      "p50_ms": 519.14,
+      "p95_ms": 1557.16,
+      "samples": 20,
+      "per_target": {
+        "Google": {
+          "ok": 5,
+          "fail": 0
+        },
+        "YouTube": {
+          "ok": 5,
+          "fail": 0
+        },
+        "Cloudflare": {
+          "ok": 5,
+          "fail": 0
+        },
+        "X.com": {
+          "ok": 5,
+          "fail": 0
+        }
+      }
+    }
+  ]
+}
