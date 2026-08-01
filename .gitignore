@@ -1,0 +1,28 @@
+# Environment / secrets
+config.env
+.env
+*.env
+!config.env.example
+
+# Output & runtime artifacts
+best_configs.txt
+best_configs.txt.meta.json
+vpn_tester.log
+*.log
+repo/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# OS
+.DS_Store
+Thumbs.db

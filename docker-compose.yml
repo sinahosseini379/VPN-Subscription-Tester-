@@ -1,0 +1,18 @@
+services:
+  tester:
+    build: .
+    container_name: vpn-subscription-tester
+    restart: unless-stopped
+    env_file:
+      - config.env
+    volumes:
+      - ./config.env:/app/config.env:ro
+      - ./subscriptions.txt:/app/subscriptions.txt:ro
+      - ./output:/app/output
+    command: ["vpn-tester"]
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "vpn-tester"]
+      interval: 5m
+      timeout: 10s
+      start_period: 30s
+      retries: 3
