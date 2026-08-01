@@ -48,18 +48,27 @@ async def download_configs(sub_urls: list[str], settings: Settings) -> list[Conf
                 port=parsed.port,
             )
         )
+    if len(configs) > settings.max_configs:
+        log.warning("Truncating %d configs to MAX_CONFIGS=%d", len(configs), settings.max_configs)
+        configs = configs[: settings.max_configs]
     log.info("Total unique configs: %d", len(configs))
     return configs
 
 
 async def tcp_filter(configs: list[Config], settings: Settings) -> list[Config]:
-    """Keep only configs whose server answers the TCP ping reliably."""
+    """Keep only configs whose server answers the TCP ping reliably.
+
+    Concurrency is capped to avoid a socket storm on large subscriptions.
+    """
+
+    sem = asyncio.Semaphore(min(settings.tcp_concurrency, max(1, len(configs))))
 
     async def _ping(cfg: Config) -> int:
-        try:
-            return await tcp_ping(cfg.server, cfg.port, settings.tcp_ping_tries)
-        except Exception:
-            return 0
+        async with sem:
+            try:
+                return await tcp_ping(cfg.server, cfg.port, settings.tcp_ping_tries)
+            except Exception:
+                return 0
 
     results = await asyncio.gather(*[_ping(c) for c in configs])
     kept = [c for c, ok in zip(configs, results) if ok >= settings.tcp_ping_min_success]
@@ -72,12 +81,11 @@ async def tcp_filter(configs: list[Config], settings: Settings) -> list[Config]:
     return kept
 
 
-async def country_filter(
-    configs: list[Config], xray_bin: str, settings: Settings, session: aiohttp.ClientSession
-) -> list[Config]:
+async def country_filter(configs: list[Config], xray_bin: str, settings: Settings) -> list[Config]:
     """Keep only configs whose exit IP is in the allowed country set.
 
-    Also concurrency-limited (unlike v1) to avoid a process storm.
+    Each config is probed through its own Xray process + SOCKS tunnel,
+    concurrency-limited to avoid a process storm.
     """
     if not settings.allowed_countries:
         log.info("No allowed countries configured; skipping country filter.")
@@ -93,9 +101,7 @@ async def country_filter(
         async with sem:
             try:
                 async with XrayRunner(xray_bin, cfg, port, settings) as runner:
-                    return await cache.get_country(
-                        session, runner.proxy_url, settings.connect_timeout
-                    )
+                    return await cache.get_country(runner.session, settings.connect_timeout)
             except Exception:
                 return None
 
@@ -115,28 +121,36 @@ async def country_filter(
     return kept
 
 
-async def url_test_round(
-    configs: list[Config], xray_bin: str, settings: Settings, session: aiohttp.ClientSession
-) -> None:
-    """One round of URL tests across all configs (concurrency-limited)."""
+async def url_test_all(configs: list[Config], xray_bin: str, settings: Settings) -> None:
+    """Run all URL-test rounds, reusing one Xray process per config.
+
+    Each config keeps a single Xray process + SOCKS tunnel alive for all rounds
+    (instead of restarting it per round). Results are tracked per target so the
+    final error rate can be weighted.
+    """
     sem = asyncio.Semaphore(settings.max_concurrent)
+    rounds = settings.url_test_rounds
+    targets = settings.test_urls
 
     async def _test(i: int, cfg: Config) -> None:
         port = settings.socks_port_base + i
         async with sem:
             try:
                 async with XrayRunner(xray_bin, cfg, port, settings) as runner:
-                    for label, url in settings.test_urls:
-                        cfg.total += 1
-                        ms = await runner.test_url(label, url, session)
-                        if ms is None:
-                            cfg.errors += 1
-                        else:
-                            cfg.latencies.append(ms)
+                    for _ in range(rounds):
+                        for label, url, _weight in targets:
+                            ms = await runner.test_url(label, url)
+                            cfg.record(label, ms is not None)
+                            if ms is not None:
+                                cfg.latencies.append(ms)
             except Exception as exc:
                 log.debug("  [SKIP] %s: %s", cfg.display_name(), exc)
-                cfg.errors += len(settings.test_urls)
-                cfg.total += len(settings.test_urls)
+                for label, _url, _weight in targets:
+                    for _ in range(rounds):
+                        cfg.record(label, False)
+        # Totals are derived from recorded stats so error_rate is always exact.
+        cfg.total = rounds * len(targets)
+        cfg.errors = sum(st["fail"] for st in cfg.target_stats.values())
 
     await asyncio.gather(*[_test(i, c) for i, c in enumerate(configs)])
 
@@ -145,9 +159,11 @@ def select_top(configs: list[Config], settings: Settings) -> list[Config]:
     """Drop configs with too many errors, then take the best N per country.
 
     Keeps `configs_per_country` best configs for every allowed country, in the
-    order countries appear in `settings.allowed_countries`.
+    order countries appear in `settings.allowed_countries`. Ranking uses the
+    target-weighted error rate, then average latency.
     """
-    candidates = [c for c in configs if c.error_rate <= settings.max_error_rate]
+    weights = {label: w for label, _url, w in settings.test_urls}
+    candidates = [c for c in configs if c.weighted_error_rate(weights) <= settings.max_error_rate]
     dropped = len(configs) - len(candidates)
     if dropped:
         log.info(
@@ -159,7 +175,7 @@ def select_top(configs: list[Config], settings: Settings) -> list[Config]:
     result: list[Config] = []
     for cc in settings.allowed_countries:
         pool = [c for c in candidates if c.country == cc]
-        pool.sort(key=lambda c: (c.error_rate, c.avg_latency))
+        pool.sort(key=lambda c: (c.weighted_error_rate(weights), c.avg_latency))
         result.extend(pool[: settings.configs_per_country])
     return result
 
@@ -175,20 +191,16 @@ async def run_pipeline(sub_urls: list[str], xray_bin: str, settings: Settings) -
     if not configs:
         return []
 
-    connector = aiohttp.TCPConnector(limit=settings.max_concurrent * 2, ssl=False)
-    async with aiohttp.ClientSession(connector=connector) as session:
-        configs = await country_filter(configs, xray_bin, settings, session)
-        if not configs:
-            return []
+    configs = await country_filter(configs, xray_bin, settings)
+    if not configs:
+        return []
 
-        log.info(
-            "URL tests — %d rounds across %d targets",
-            settings.url_test_rounds,
-            len(settings.test_urls),
-        )
-        for rnd in range(settings.url_test_rounds):
-            log.info("URL test round %d/%d", rnd + 1, settings.url_test_rounds)
-            await url_test_round(configs, xray_bin, settings, session)
+    log.info(
+        "URL tests — %d rounds across %d targets",
+        settings.url_test_rounds,
+        len(settings.test_urls),
+    )
+    await url_test_all(configs, xray_bin, settings)
 
     top = select_top(configs, settings)
     log.info("=" * 55)

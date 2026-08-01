@@ -22,6 +22,19 @@ def test_decode_base64_list():
     assert any(u.startswith("ss://") for u in uris)
 
 
+def test_decode_base64_with_existing_padding():
+    """Subscriptions that already carry trailing '=' must still decode."""
+    payload = _b64("vless://a@x.com:443#one")
+    uris = decode_subscription(payload)
+    assert uris == ["vless://a@x.com:443#one"]
+
+
+def test_decode_base64_with_whitespace():
+    payload = _b64("vless://a@x.com:443#one\nss://u:p@s.com:443")
+    uris = decode_subscription(payload)
+    assert uris == ["vless://a@x.com:443#one", "ss://u:p@s.com:443"]
+
+
 def test_decode_base64_requires_prefix():
     # base64 of plain text that is not a uri list should fall through
     text = "hello world\nthis is not base64-encoded subscriptions"

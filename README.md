@@ -9,17 +9,19 @@ with a tested, configurable, container-friendly package.
 
 ## What changed vs v1
 
-| Area | v1 | v2 |
-|---|---|---|
-| GitHub push | `git` with the token embedded in the remote URL (leaks into `.git/config` & logs) | **GitHub Contents API**, Bearer header only — token never touches disk |
-| run.py | `push_to_github()` was dead code behind an infinite loop | fixed via `--once` / loop modes |
-| Country check | unbounded process spawn | concurrency-limited by `MAX_CONCURRENT` |
-| Xray startup | fixed 1.5s sleep | **readiness polling** until SOCKS accepts |
-| URL test | any HTTP status counted as success | only **2xx/3xx** validated |
-| Geo-IP | single `ipapi.co` | 3 fallback providers + per-IP cache |
-| Unsupported protocols | accepted then silently dropped | reported & skipped |
-| Unused tunables | `MAX_ERROR_RATE`, `EXTRA_ROUNDS` dead code | wired up / removed |
-| Tests / CI / Docker | none | pytest + ruff + GitHub Actions + Dockerfile |
+| Area | v1 | v2 | v2.1 |
+|---|---|---|---|
+| GitHub push | `git` with the token embedded in the remote URL (leaks into `.git/config` & logs) | **GitHub Contents API**, Bearer header only — token never touches disk | nested output paths supported |
+| SOCKS proxy | — | broken: aiohttp's `proxy=` only speaks HTTP | **aiohttp-socks `ProxyConnector`** with `rdns=True` (DNS stays in-tunnel) |
+| Country check | unbounded process spawn | concurrency-limited by `MAX_CONCURRENT` | — |
+| Xray startup | fixed 1.5s sleep | **readiness polling** until SOCKS accepts | — |
+| URL test | any HTTP status counted as success | only **2xx/3xx** validated | weighted targets + per-target stats |
+| TCP pre-filter | unbounded | — | **concurrency-capped** (`TCP_CONCURRENCY`) + `MAX_CONFIGS` cap |
+| Base64 decode | — | fragile padding (`text + "=="`) | tolerant padding + URL-safe fallback |
+| Publish safety | overwrites repo on every run | — | `ALERT_MIN_CONFIGS` guard refuses to overwrite on bad runs |
+| TLS | strict (`allowInsecure=False`) | — | `ALLOW_INSECURE` (default on) avoids false negatives |
+| Unused tunables | `MAX_ERROR_RATE`, `EXTRA_ROUNDS` dead code | wired up / removed | `ALERT_MIN_CONFIGS` now enforced |
+| Tests / CI / Docker | none | pytest + ruff + GitHub Actions + Dockerfile | + real SOCKS5 regression test |
 
 ## Layout
 
@@ -79,11 +81,14 @@ The image bundles the latest Xray-core and runs the loop with a healthcheck.
 `CONFIGS_PER_COUNTRY` (best N per allowed country, in list order), `SCHEDULE_TIME`
 (one run per day, HH:MM), `TIMEZONE` (IANA zone for the schedule, default
 `Asia/Tehran`), `URL_TEST_ROUNDS`,
-`TCP_PING_TRIES`, `TCP_PING_MIN_SUCCESS`, `MAX_ERROR_RATE`,
+`TCP_PING_TRIES`, `TCP_PING_MIN_SUCCESS`, `TCP_CONCURRENCY`, `MAX_CONFIGS`,
+`ALLOW_INSECURE`, `MAX_ERROR_RATE` (weighted by target),
 `MAX_CONCURRENT`, `MAX_SUBSCRIPTION_URLS`,
 `ALLOWED_COUNTRIES` (default `DE,FI,NL,GB,US,TR`), `GEOIP_PROVIDERS`,
 `XRAY_BIN`, `OUTPUT_FILE`, `METADATA_FILE`, `GITHUB_*`, `ALERT_WEBHOOK`
-(Telegram or ntfy), `TEST_URLS`.
+(Telegram or ntfy), `ALERT_MIN_CONFIGS` (refuses to publish below this many
+configs), `TEST_URLS` (`Label,URL[,weight]` separated by `|`; weight changes
+how much a target counts toward the final score).
 
 The final output contains up to `CONFIGS_PER_COUNTRY` best configs for each
 allowed country, listed in `ALLOWED_COUNTRIES` order.

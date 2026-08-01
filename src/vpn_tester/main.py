@@ -22,8 +22,7 @@ log = logging.getLogger("vpn_tester")
 
 
 def setup_logging(settings, verbose: bool) -> None:
-    level = logging.DEBUG if verbose else getattr(logging, settings.log_level, logging.INFO)
-    logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+    level = logging.DEBUG if verbose else getattr(settings.log_level, logging.INFO)
 
     handlers: list[logging.Handler] = [logging.StreamHandler(sys.stdout)]
     if settings.log_file:
@@ -88,6 +87,15 @@ async def run_once(settings, *, do_push: bool) -> bool:
     top = await run_pipeline(sub_urls, find_xray(settings), settings)
     if not top:
         log.error("No configs survived; nothing written.")
+        return False
+
+    if len(top) < settings.alert_min_configs:
+        log.warning(
+            "Only %d configs survived (< ALERT_MIN_CONFIGS=%d); "
+            "refusing to overwrite the published output.",
+            len(top),
+            settings.alert_min_configs,
+        )
         return False
 
     write_subscription(top, settings)

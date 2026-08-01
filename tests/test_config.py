@@ -58,7 +58,23 @@ def test_settings_test_urls_override(tmp_path):
         "TEST_URLS=GitHub,https://github.com|Wiki,https://wikipedia.org\n", encoding="utf-8"
     )
     s = Settings.from_env(env, environ={})
-    assert s.test_urls == [("GitHub", "https://github.com"), ("Wiki", "https://wikipedia.org")]
+    assert s.test_urls == [
+        ("GitHub", "https://github.com", 1.0),
+        ("Wiki", "https://wikipedia.org", 1.0),
+    ]
+
+
+def test_settings_test_urls_with_weights(tmp_path):
+    env = tmp_path / "config.env"
+    env.write_text(
+        "TEST_URLS=YouTube,https://www.youtube.com/generate_204,2|Wiki,https://wikipedia.org\n",
+        encoding="utf-8",
+    )
+    s = Settings.from_env(env, environ={})
+    assert s.test_urls == [
+        ("YouTube", "https://www.youtube.com/generate_204", 2.0),
+        ("Wiki", "https://wikipedia.org", 1.0),
+    ]
 
 
 def test_settings_allowed_countries_override(tmp_path):

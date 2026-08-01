@@ -42,24 +42,31 @@ def build_metadata(configs: list[Config], settings: Settings) -> dict:
         key = c.country or "?"
         by_country[key] = by_country.get(key, 0) + 1
 
+    weights = {label: w for label, _url, w in settings.test_urls}
+
     return {
-        "version": "2.0.0",
+        "version": "2.1.0",
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "count": len(configs),
         "avg_latency_ms": _round2(avg_lat),
         "avg_error_rate": _round2(err_rate),
         "by_country": by_country,
-        "targets": [label for label, _ in settings.test_urls],
+        "targets": [
+            {"label": label, "url": url, "weight": weight}
+            for label, url, weight in settings.test_urls
+        ],
         "items": [
             {
                 "name": c.display_name(),
                 "protocol": c.protocol,
                 "country": c.country,
                 "error_rate": _round2(c.error_rate),
+                "weighted_error_rate": _round2(c.weighted_error_rate(weights)),
                 "avg_latency_ms": _round2(c.avg_latency) if c.latencies else None,
                 "p50_ms": _round2(c.p50) if c.latencies else None,
                 "p95_ms": _round2(c.p95) if c.latencies else None,
                 "samples": c.total,
+                "per_target": c.target_stats,
             }
             for c in configs
         ],

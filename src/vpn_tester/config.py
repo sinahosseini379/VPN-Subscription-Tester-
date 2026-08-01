@@ -32,11 +32,11 @@ def _load_env_file(path: Path | str) -> dict[str, str]:
     return out
 
 
-DEFAULT_TEST_URLS: list[tuple[str, str]] = [
-    ("Google", "http://www.gstatic.com/generate_204"),
-    ("YouTube", "https://www.youtube.com/generate_204"),
-    ("Cloudflare", "http://cp.cloudflare.com/"),
-    ("X.com", "https://x.com/"),
+DEFAULT_TEST_URLS: list[tuple[str, str, float]] = [
+    ("Google", "http://www.gstatic.com/generate_204", 1.0),
+    ("YouTube", "https://www.youtube.com/generate_204", 1.0),
+    ("Cloudflare", "http://cp.cloudflare.com/", 1.0),
+    ("X.com", "https://x.com/", 1.0),
 ]
 
 DEFAULT_ALLOWED_COUNTRIES: dict[str, tuple[str, str]] = {
@@ -73,6 +73,9 @@ class Settings:
     schedule_time: str = "04:04"
     timezone: str = "Asia/Tehran"
     max_concurrent: int = 10
+    tcp_concurrency: int = 100  # max parallel TCP probes (pre-filter)
+    max_configs: int = 500  # hard cap on configs taken into the pipeline
+    allow_insecure: bool = True  # tolerate self-signed/loose TLS (avoids false negatives)
     xray_startup_timeout: float = 15.0
     socks_port_base: int = 20000
     connect_timeout: float = 10.0
@@ -81,7 +84,8 @@ class Settings:
     max_subscription_urls: int = 10
 
     # -- What we test against ----------------------------------------------
-    test_urls: list[tuple[str, str]] = field(default_factory=lambda: list(DEFAULT_TEST_URLS))
+    # Each target is (label, url, weight); weight influences the final score.
+    test_urls: list[tuple[str, str, float]] = field(default_factory=lambda: list(DEFAULT_TEST_URLS))
 
     allowed_countries: dict[str, tuple[str, str]] = field(
         default_factory=lambda: dict(DEFAULT_ALLOWED_COUNTRIES)
@@ -141,17 +145,17 @@ class Settings:
             return env.get(key, default).strip()
 
         urls_raw = env.get("TEST_URLS", "")
-        test_urls = (
-            [
-                (parts[0].strip(), parts[1].strip())
-                for entry in urls_raw.split("|")
-                if entry.strip()
-                for parts in [entry.split(",")]
-                if len(parts) == 2
-            ]
-            if urls_raw
-            else None
-        )
+        test_urls = None
+        if urls_raw:
+            test_urls = []
+            for entry in urls_raw.split("|"):
+                if not entry.strip():
+                    continue
+                parts = entry.split(",")
+                if len(parts) >= 2:
+                    label, url = parts[0].strip(), parts[1].strip()
+                    weight = float(parts[2].strip()) if len(parts) > 2 and parts[2].strip() else 1.0
+                    test_urls.append((label, url, weight))
 
         countries_raw = env.get("ALLOWED_COUNTRIES", "")
         allowed = None
@@ -183,6 +187,9 @@ class Settings:
             schedule_time=_s("SCHEDULE_TIME", cls.schedule_time),
             timezone=_s("TIMEZONE", cls.timezone),
             max_concurrent=_i("MAX_CONCURRENT", cls.max_concurrent),
+            tcp_concurrency=_i("TCP_CONCURRENCY", cls.tcp_concurrency),
+            max_configs=_i("MAX_CONFIGS", cls.max_configs),
+            allow_insecure=_b("ALLOW_INSECURE", cls.allow_insecure),
             xray_startup_timeout=_f("XRAY_STARTUP_TIMEOUT", cls.xray_startup_timeout),
             socks_port_base=_i("SOCKS_PORT_BASE", cls.socks_port_base),
             connect_timeout=_f("CONNECT_TIMEOUT", cls.connect_timeout),

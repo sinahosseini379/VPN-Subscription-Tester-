@@ -9,7 +9,7 @@ def _cfg(
     name: str, country: str, latencies: list[float], errors: int = 0, total: int | None = None
 ):
     total = total if total is not None else len(latencies) + errors
-    return Config(
+    c = Config(
         uri=f"vless://x@{name}.com:443#",
         name=name,
         server=f"{name}.com",
@@ -19,6 +19,11 @@ def _cfg(
         errors=errors,
         total=total,
     )
+    # mirror errors/total into per-target stats so weighted_error_rate matches
+    c.record("Test", False)
+    c.target_stats["Test"]["ok"] = total - errors
+    c.target_stats["Test"]["fail"] = errors
+    return c
 
 
 def test_select_top_takes_n_per_country_in_order():

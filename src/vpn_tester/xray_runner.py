@@ -18,6 +18,7 @@ import tempfile
 import time
 
 import aiohttp
+from aiohttp_socks import ProxyConnector
 
 from .config import Settings
 from .models import Config
@@ -68,9 +69,25 @@ class XrayRunner:
         self.proxy_url = f"socks5://127.0.0.1:{socks_port}"
         self._proc: asyncio.subprocess.Process | None = None
         self._tmpdir: str | None = None
+        self._connector: ProxyConnector | None = None
+        self._session: aiohttp.ClientSession | None = None
+
+    @property
+    def session(self) -> aiohttp.ClientSession:
+        """HTTP session whose traffic is tunnelled through this config's SOCKS port.
+
+        aiohttp's `proxy=` kwarg only supports HTTP proxies, so each Xray runner
+        owns a dedicated aiohttp-socks ProxyConnector (rdns=True keeps DNS inside
+        the tunnel, avoiding leaks and false results).
+        """
+        if self._session is None:
+            raise RuntimeError("session not available before __aenter__")
+        return self._session
 
     async def __aenter__(self) -> XrayRunner:
-        xray_cfg = build_xray_config(self.cfg.uri, self.socks_port)
+        xray_cfg = build_xray_config(
+            self.cfg.uri, self.socks_port, allow_insecure=self.settings.allow_insecure
+        )
         if xray_cfg is None:
             raise ValueError(f"Cannot build Xray config for {self.cfg.uri[:60]}")
         self._tmpdir = tempfile.mkdtemp(prefix="xray_")
@@ -91,9 +108,18 @@ class XrayRunner:
         )
         if not ready:
             raise RuntimeError("Xray did not open the SOCKS port in time")
+
+        self._connector = ProxyConnector.from_url(self.proxy_url, rdns=True)
+        self._session = aiohttp.ClientSession(connector=self._connector)
         return self
 
     async def __aexit__(self, *_):
+        if self._session:
+            await self._session.close()
+            self._session = None
+        if self._connector:
+            await self._connector.close()
+            self._connector = None
         if self._proc:
             try:
                 self._proc.kill()
@@ -106,7 +132,7 @@ class XrayRunner:
             shutil.rmtree(self._tmpdir, ignore_errors=True)
             self._tmpdir = None
 
-    async def test_url(self, label: str, url: str, session: aiohttp.ClientSession) -> float | None:
+    async def test_url(self, label: str, url: str) -> float | None:
         """One validated HTTP request through the SOCKS proxy.
 
         Only 2xx/3xx responses count as success; returns latency ms or None.
@@ -117,9 +143,8 @@ class XrayRunner:
         )
         try:
             t0 = time.perf_counter()
-            async with session.get(
+            async with self.session.get(
                 url,
-                proxy=self.proxy_url,
                 timeout=timeout,
                 allow_redirects=True,
                 ssl=False,

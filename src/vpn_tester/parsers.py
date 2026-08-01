@@ -52,7 +52,7 @@ def _parse_qs(s: str) -> dict:
     return dict(urllib.parse.parse_qsl(s))
 
 
-def build_stream(p: dict) -> dict:
+def build_stream(p: dict, allow_insecure: bool = True) -> dict:
     """Build Xray streamSettings from URI query parameters."""
     net = p.get("type") or p.get("net") or "tcp"
     security = p.get("security") or p.get("tls") or "none"
@@ -100,7 +100,7 @@ def build_stream(p: dict) -> dict:
 
     if security == "tls":
         stream["security"] = "tls"
-        tls: dict = {"allowInsecure": False}
+        tls: dict = {"allowInsecure": allow_insecure}
         if sni:
             tls["serverName"] = sni
         if fp:
@@ -123,7 +123,7 @@ def build_stream(p: dict) -> dict:
     return stream
 
 
-def _vless_outbound(uri: str) -> dict | None:
+def _vless_outbound(uri: str, allow_insecure: bool = True) -> dict | None:
     u = strip_fragment(uri[len("vless://") :])
     qs = ""
     if "?" in u:
@@ -151,11 +151,11 @@ def _vless_outbound(uri: str) -> dict | None:
                 }
             ]
         },
-        "streamSettings": build_stream(p),
+        "streamSettings": build_stream(p, allow_insecure=allow_insecure),
     }
 
 
-def _vmess_outbound(uri: str) -> dict | None:
+def _vmess_outbound(uri: str, allow_insecure: bool = True) -> dict | None:
     try:
         data = json.loads(base64.b64decode(uri[8:] + "==").decode(errors="ignore"))
     except Exception:
@@ -188,11 +188,11 @@ def _vmess_outbound(uri: str) -> dict | None:
                 }
             ]
         },
-        "streamSettings": build_stream(p),
+        "streamSettings": build_stream(p, allow_insecure=allow_insecure),
     }
 
 
-def _trojan_outbound(uri: str) -> dict | None:
+def _trojan_outbound(uri: str, allow_insecure: bool = True) -> dict | None:
     u = strip_fragment(uri[len("trojan://") :])
     qs = ""
     if "?" in u:
@@ -215,7 +215,7 @@ def _trojan_outbound(uri: str) -> dict | None:
                 }
             ]
         },
-        "streamSettings": build_stream(p),
+        "streamSettings": build_stream(p, allow_insecure=allow_insecure),
     }
 
 
@@ -269,19 +269,19 @@ def _ss_outbound(uri: str) -> dict | None:
     }
 
 
-def parse_uri(uri: str) -> ParsedConfig | None:
+def parse_uri(uri: str, allow_insecure: bool = True) -> ParsedConfig | None:
     """Parse a single URI. Returns ParsedConfig or None if unsupported/malformed."""
     if not is_supported(uri):
         return None
 
     if uri.startswith("vless://"):
-        out = _vless_outbound(uri)
+        out = _vless_outbound(uri, allow_insecure=allow_insecure)
         protocol = "vless"
     elif uri.startswith("vmess://"):
-        out = _vmess_outbound(uri)
+        out = _vmess_outbound(uri, allow_insecure=allow_insecure)
         protocol = "vmess"
     elif uri.startswith("trojan://"):
-        out = _trojan_outbound(uri)
+        out = _trojan_outbound(uri, allow_insecure=allow_insecure)
         protocol = "trojan"
     else:
         out = _ss_outbound(uri)
@@ -359,9 +359,9 @@ def wrap_xray_config(outbound: dict, socks_port: int) -> dict:
     }
 
 
-def build_xray_config(uri: str, socks_port: int) -> dict | None:
+def build_xray_config(uri: str, socks_port: int, allow_insecure: bool = True) -> dict | None:
     """High-level helper: URI + socks port -> full runnable Xray JSON dict."""
-    parsed = parse_uri(uri)
+    parsed = parse_uri(uri, allow_insecure=allow_insecure)
     if parsed is None:
         return None
     return wrap_xray_config(parsed.outbound, socks_port=socks_port)

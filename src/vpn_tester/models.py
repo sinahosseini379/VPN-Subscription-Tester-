@@ -18,6 +18,22 @@ class Config:
     country: str = ""
     country_name: str = ""
     flag: str = ""
+    target_stats: dict[str, dict[str, int]] = field(default_factory=dict)
+
+    def record(self, label: str, ok: bool) -> None:
+        """Record one probe result against a named test target."""
+        stats = self.target_stats.setdefault(label, {"ok": 0, "fail": 0})
+        stats["ok" if ok else "fail"] += 1
+
+    def weighted_error_rate(self, weights: dict[str, float]) -> float:
+        """Error rate where each target contributes its configured weight."""
+        total_w = 0.0
+        fail_w = 0.0
+        for label, stats in self.target_stats.items():
+            w = weights.get(label, 1.0)
+            total_w += w * (stats["ok"] + stats["fail"])
+            fail_w += w * stats["fail"]
+        return fail_w / total_w if total_w else 1.0
 
     @property
     def avg_latency(self) -> float:

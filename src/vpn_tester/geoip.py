@@ -16,14 +16,16 @@ from .models import Config
 
 log = logging.getLogger(__name__)
 
+# Ordered by reliability. ip-api.com's free tier is HTTP-only (HTTPS needs a
+# paid plan), so its URL deliberately uses http:// and it sits last as a fallback.
 PROVIDERS = {
     "https://ipinfo.io/json": "ipinfo",
-    "https://ip-api.com/json/": "ip_api",
     "https://ipapi.co/json/": "ipapi",
+    "http://ip-api.com/json/": "ip_api",
 }
 
-FetchCountry = Callable[["aiohttp.ClientSession", str, str, float], "str | None"]
-FetchIp = Callable[["aiohttp.ClientSession", str, str], "str | None"]
+FetchCountry = Callable[["aiohttp.ClientSession", str, float], "str | None"]
+FetchIp = Callable[["aiohttp.ClientSession", float], "str | None"]
 
 
 def parse_country(payload: dict, provider: str) -> str | None:
@@ -43,14 +45,12 @@ def parse_country(payload: dict, provider: str) -> str | None:
     return None
 
 
-async def fetch_country(
-    session: aiohttp.ClientSession, url: str, proxy: str, timeout: float
-) -> str | None:
-    """Query one geo-IP provider through the SOCKS proxy; return country code."""
+async def fetch_country(session: aiohttp.ClientSession, url: str, timeout: float) -> str | None:
+    """Query one geo-IP provider through the session's SOCKS tunnel."""
     provider = PROVIDERS.get(url, "unknown")
     try:
         to = aiohttp.ClientTimeout(connect=timeout, total=timeout + 5)
-        async with session.get(url, proxy=proxy, timeout=to, ssl=False) as resp:
+        async with session.get(url, timeout=to, ssl=False) as resp:
             if resp.status != 200:
                 return None
             payload = await resp.json(content_type=None)
@@ -60,11 +60,11 @@ async def fetch_country(
         return None
 
 
-async def fetch_exit_ip(session: aiohttp.ClientSession, proxy: str, timeout: float) -> str | None:
+async def fetch_exit_ip(session: aiohttp.ClientSession, timeout: float) -> str | None:
     """Best-effort exit IP for cache keys; failure just disables caching."""
     try:
         to = aiohttp.ClientTimeout(connect=timeout, total=timeout + 5)
-        async with session.get("https://api.ipify.org", proxy=proxy, timeout=to, ssl=False) as resp:
+        async with session.get("https://api.ipify.org", timeout=to, ssl=False) as resp:
             if resp.status == 200:
                 return (await resp.text()).strip()
     except Exception:
@@ -86,17 +86,15 @@ class GeoCache:
         self._fetch_ip = fetch_ip
         self._cache: dict[str, str] = {}
 
-    async def get_country(
-        self, session: aiohttp.ClientSession, proxy: str, timeout: float
-    ) -> str | None:
-        """Return exit country for the given proxy. Result is cached per IP."""
-        exit_ip = await self._fetch_ip(session, proxy, timeout)
+    async def get_country(self, session: aiohttp.ClientSession, timeout: float) -> str | None:
+        """Return exit country for the given tunnel. Result is cached per IP."""
+        exit_ip = await self._fetch_ip(session, timeout)
         if exit_ip:
             cached = self._cache.get(exit_ip)
             if cached:
                 return cached
         for url in self._urls:
-            cc = await self._fetch(session, url, proxy, timeout)
+            cc = await self._fetch(session, url, timeout)
             if cc:
                 if exit_ip:
                     self._cache[exit_ip] = cc
@@ -105,7 +103,7 @@ class GeoCache:
 
 
 async def check_exit_country(
-    cfg: Config, session: aiohttp.ClientSession, proxy: str, cache: GeoCache, timeout: float
+    cfg: Config, session: aiohttp.ClientSession, cache: GeoCache, timeout: float
 ) -> str | None:
     """High-level helper used by the pipeline."""
-    return await cache.get_country(session, proxy, timeout)
+    return await cache.get_country(session, timeout)

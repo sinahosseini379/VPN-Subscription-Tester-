@@ -8,6 +8,7 @@ from __future__ import annotations
 import base64
 import json
 import logging
+import re
 import urllib.parse
 from typing import Any
 
@@ -18,11 +19,28 @@ from .parsers import is_valid_uri
 log = logging.getLogger(__name__)
 
 
+def _b64_decode(text: str) -> bytes:
+    """Decode base64, tolerating whitespace and missing/extra padding.
+
+    Tries standard alphabet first, then URL-safe. Raises on truly invalid input.
+    """
+    t = re.sub(r"\s+", "", text.strip())
+    if not t:
+        raise ValueError("empty base64 input")
+    for alphabet in (base64.b64decode, base64.urlsafe_b64decode):
+        try:
+            padded = t + "=" * (-len(t) % 4)
+            return alphabet(padded)
+        except Exception:
+            continue
+    raise ValueError("invalid base64 input")
+
+
 def decode_subscription(text: str) -> list[str]:
     """Turn raw subscription payload (base64 / JSON / plain text) into URIs."""
     # 1) Try base64 first — the most common subscription format.
     try:
-        decoded = base64.b64decode(text + "==").decode("utf-8", errors="ignore")
+        decoded = _b64_decode(text).decode("utf-8", errors="ignore")
         if any(decoded.startswith(p) for p in ("vmess://", "vless://", "ss://", "trojan://")):
             return _unique_lines(decoded)
     except Exception:

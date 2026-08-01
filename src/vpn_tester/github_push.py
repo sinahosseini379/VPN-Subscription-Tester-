@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import logging
+import urllib.parse
 from pathlib import Path
 
 import aiohttp
@@ -51,13 +52,25 @@ async def _api(
         return body if isinstance(body, dict) else {}
 
 
+def _repo_rel(rel: str) -> str:
+    """GitHub API path for a configured file.
+
+    Nested relative entries (e.g. ``output/best_configs.txt``) map to the same
+    repo path; absolute local paths fall back to their basename.
+    """
+    p = Path(rel)
+    return p.name if p.is_absolute() else rel
+
+
 async def _upsert_file(
-    session: aiohttp.ClientSession, settings: Settings, path: Path, sha: str | None
+    session: aiohttp.ClientSession, settings: Settings, path: Path, repo_rel: str, sha: str | None
 ) -> bool:
-    rel = path.name
-    api_url = f"{API_BASE}/repos/{settings.github_owner}/{settings.github_repo}/contents/{rel}"
+    api_url = (
+        f"{API_BASE}/repos/{settings.github_owner}/{settings.github_repo}"
+        f"/contents/{urllib.parse.quote(repo_rel, safe='/')}"
+    )
     payload = {
-        "message": f"chore: update {rel}",
+        "message": f"chore: update {repo_rel}",
         "content": _file_to_b64(path),
         "branch": settings.github_branch,
         "author": {
@@ -75,10 +88,13 @@ async def _upsert_file(
     return result is not None
 
 
-async def _current_sha(session: aiohttp.ClientSession, settings: Settings, rel: str) -> str | None:
+async def _current_sha(
+    session: aiohttp.ClientSession, settings: Settings, repo_rel: str
+) -> str | None:
     api_url = (
         f"{API_BASE}/repos/{settings.github_owner}/"
-        f"{settings.github_repo}/contents/{rel}?ref={settings.github_branch}"
+        f"{settings.github_repo}/contents/{urllib.parse.quote(repo_rel, safe='/')}"
+        f"?ref={settings.github_branch}"
     )
     data = await _api(session, "GET", api_url, settings.github_token)
     if data and isinstance(data.get("sha"), str):
@@ -108,11 +124,12 @@ async def push_to_github(
                     if not path.exists():
                         log.warning("File not found, skipping: %s", rel)
                         continue
-                    sha = await _current_sha(session, settings, path.name)
-                    ok = await _upsert_file(session, settings, path, sha)
+                    repo_rel = _repo_rel(rel)
+                    sha = await _current_sha(session, settings, repo_rel)
+                    ok = await _upsert_file(session, settings, path, repo_rel, sha)
                     if not ok:
-                        raise RuntimeError(f"Failed to upload {path.name}")
-                    log.info("Uploaded %s", path.name)
+                        raise RuntimeError(f"Failed to upload {repo_rel}")
+                    log.info("Uploaded %s", repo_rel)
             finally:
                 if own_session:
                     await session.close()
