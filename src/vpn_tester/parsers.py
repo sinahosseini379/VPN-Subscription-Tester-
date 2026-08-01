@@ -131,6 +131,19 @@ def build_stream(p: dict, allow_insecure: bool = True) -> dict:
     return stream
 
 
+def _parse_port(raw: object) -> int | None:
+    """Best-effort port parse: tolerate trailing '/', path suffix, whitespace."""
+    if raw is None:
+        return None
+    s = str(raw).strip().split("/", 1)[0].strip()
+    if not s.isdigit():
+        return None
+    port = int(s)
+    if not 1 <= port <= 65535:
+        return None
+    return port
+
+
 def _vless_outbound(uri: str, allow_insecure: bool = True) -> dict | None:
     u = strip_fragment(uri[len("vless://") :])
     qs = ""
@@ -141,6 +154,9 @@ def _vless_outbound(uri: str, allow_insecure: bool = True) -> dict | None:
         host, port_str = hostport.rsplit(":", 1)
     except ValueError:
         return None
+    port = _parse_port(port_str)
+    if port is None:
+        return None
     p = _parse_qs(qs)
     return {
         "protocol": "vless",
@@ -148,7 +164,7 @@ def _vless_outbound(uri: str, allow_insecure: bool = True) -> dict | None:
             "vnext": [
                 {
                     "address": host,
-                    "port": int(port_str),
+                    "port": port,
                     "users": [
                         {
                             "id": uuid,
@@ -170,6 +186,13 @@ def _vmess_outbound(uri: str, allow_insecure: bool = True) -> dict | None:
         return None
     if "add" not in data or "port" not in data or "id" not in data:
         return None
+    port = _parse_port(data.get("port"))
+    if port is None:
+        return None
+    try:
+        alter_id = int(data.get("aid", 0))
+    except (TypeError, ValueError):
+        alter_id = 0
     p = {
         "type": data.get("net", "tcp"),
         "security": data.get("tls", "none"),
@@ -185,11 +208,11 @@ def _vmess_outbound(uri: str, allow_insecure: bool = True) -> dict | None:
             "vnext": [
                 {
                     "address": data["add"],
-                    "port": int(data["port"]),
+                    "port": port,
                     "users": [
                         {
                             "id": data["id"],
-                            "alterId": int(data.get("aid", 0)),
+                            "alterId": alter_id,
                             "security": data.get("scy", "auto"),
                         }
                     ],
@@ -210,6 +233,9 @@ def _trojan_outbound(uri: str, allow_insecure: bool = True) -> dict | None:
         host, port_str = hostport.rsplit(":", 1)
     except ValueError:
         return None
+    port = _parse_port(port_str)
+    if port is None:
+        return None
     p = _parse_qs(qs)
     p.setdefault("security", "tls")
     return {
@@ -218,7 +244,7 @@ def _trojan_outbound(uri: str, allow_insecure: bool = True) -> dict | None:
             "servers": [
                 {
                     "address": host,
-                    "port": int(port_str),
+                    "port": port,
                     "password": password,
                 }
             ]
@@ -240,9 +266,8 @@ def _hysteria2_outbound(uri: str, allow_insecure: bool = True) -> dict | None:
         return None
     if not host or not password:
         return None
-    try:
-        port = int(port_str)
-    except ValueError:
+    port = _parse_port(port_str)
+    if port is None:
         return None
 
     p = _parse_qs(qs)
@@ -302,9 +327,8 @@ def _ss_outbound(uri: str) -> dict | None:
 
     if not all([method, password, host, port_str]):
         return None
-    try:
-        port = int(port_str)
-    except ValueError:
+    port = _parse_port(port_str)
+    if port is None:
         return None
 
     return {

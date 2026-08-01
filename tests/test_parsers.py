@@ -89,6 +89,25 @@ def test_parse_vless_ws_stream():
     assert stream["wsSettings"]["path"] == "/ws"
 
 
+@pytest.mark.parametrize(
+    "uri",
+    [
+        "vless://uuid123@server.example.com:443/#Node",  # stray trailing slash
+        "vless://uuid123@server.example.com:443//",  # double trailing slash
+        "trojan://pass@tr.example.com:443/",
+        "hy2://pass@hy.example.com:443/",
+    ],
+)
+def test_parse_uri_tolerates_trailing_slash_in_port(uri):
+    parsed = parse_uri(uri)
+    assert parsed is not None
+    assert parsed.port == 443
+
+
+def test_parse_uri_skips_bad_port():
+    assert parse_uri("vless://uuid123@server.example.com:notaport?security=none") is None
+
+
 def test_parse_vless_reality_stream():
     parsed = parse_uri(VLESS_REALITY)
     assert parsed is not None
