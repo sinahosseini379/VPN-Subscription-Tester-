@@ -1,4 +1,4 @@
-"""Parse proxy URIs (vmess/vless/trojan/ss) into minimal Xray configs.
+"""Parse proxy URIs (vless/vmess/trojan/ss/hysteria2) into minimal Xray configs.
 
 Pure functions — no I/O — so they are fully unit-testable.
 """
@@ -10,8 +10,16 @@ import json
 import urllib.parse
 from dataclasses import dataclass
 
-SUPPORTED_PREFIXES = ("vless://", "vmess://", "ss://", "shadowsocks://", "trojan://")
-VALID_URI_PREFIXES = SUPPORTED_PREFIXES + ("tuic://", "hy2://", "hysteria2://")
+SUPPORTED_PREFIXES = (
+    "vless://",
+    "vmess://",
+    "ss://",
+    "shadowsocks://",
+    "trojan://",
+    "hy2://",
+    "hysteria2://",
+)
+VALID_URI_PREFIXES = SUPPORTED_PREFIXES + ("tuic://",)
 
 
 @dataclass
@@ -219,6 +227,52 @@ def _trojan_outbound(uri: str, allow_insecure: bool = True) -> dict | None:
     }
 
 
+def _hysteria2_outbound(uri: str, allow_insecure: bool = True) -> dict | None:
+    prefix = "hysteria2://" if uri.startswith("hysteria2://") else "hy2://"
+    u = strip_fragment(uri[len(prefix) :])
+    qs = ""
+    if "?" in u:
+        u, qs = u.split("?", 1)
+    try:
+        password, hostport = u.rsplit("@", 1)
+        host, port_str = hostport.rsplit(":", 1)
+    except ValueError:
+        return None
+    if not host or not password:
+        return None
+    try:
+        port = int(port_str)
+    except ValueError:
+        return None
+
+    p = _parse_qs(qs)
+    password = urllib.parse.unquote(password)
+
+    insecure = allow_insecure
+    raw_ins = p.get("insecure") or p.get("allowInsecure")
+    if raw_ins is not None:
+        insecure = raw_ins.strip().lower() in ("1", "true", "yes", "on")
+
+    obfs = (p.get("obfs") or "").strip()
+    if obfs.lower() in ("", "none", "plain"):
+        obfs = ""
+    obfs_pw = p.get("obfs-password") or p.get("obfspassword") or ""
+
+    tls: dict = {
+        "serverName": p.get("sni") or p.get("peer") or host,
+        "allowInsecure": insecure,
+    }
+    if p.get("fp"):
+        tls["fingerprint"] = p["fp"]
+
+    server = {"address": host, "port": port, "password": password, "tlsSettings": tls}
+    if obfs:
+        server["obfs"] = obfs
+        server["obfs-password"] = obfs_pw
+
+    return {"protocol": "hysteria2", "settings": {"servers": [server]}}
+
+
 def _ss_outbound(uri: str) -> dict | None:
     prefix = "shadowsocks://" if uri.startswith("shadowsocks://") else "ss://"
     u = strip_fragment(uri[len(prefix) :])
@@ -283,6 +337,9 @@ def parse_uri(uri: str, allow_insecure: bool = True) -> ParsedConfig | None:
     elif uri.startswith("trojan://"):
         out = _trojan_outbound(uri, allow_insecure=allow_insecure)
         protocol = "trojan"
+    elif uri.startswith(("hy2://", "hysteria2://")):
+        out = _hysteria2_outbound(uri, allow_insecure=allow_insecure)
+        protocol = "hysteria2"
     else:
         out = _ss_outbound(uri)
         protocol = "shadowsocks"
@@ -312,7 +369,7 @@ def _server_from_outbound(outbound: dict) -> tuple[str, int]:
             vnext = sets.get("vnext", [])
             if vnext:
                 return vnext[0].get("address", ""), int(vnext[0].get("port", 0))
-        if proto in ("shadowsocks", "trojan"):
+        if proto in ("shadowsocks", "trojan", "hysteria2"):
             sv = sets.get("servers", [])
             if sv:
                 return sv[0].get("address", ""), int(sv[0].get("port", 0))

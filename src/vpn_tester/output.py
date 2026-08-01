@@ -45,7 +45,7 @@ def build_metadata(configs: list[Config], settings: Settings) -> dict:
     weights = {label: w for label, _url, w in settings.test_urls}
 
     return {
-        "version": "2.1.0",
+        "version": "2.2.0",
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "count": len(configs),
         "avg_latency_ms": _round2(avg_lat),

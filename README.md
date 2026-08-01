@@ -20,6 +20,7 @@ with a tested, configurable, container-friendly package.
 | Base64 decode | — | fragile padding (`text + "=="`) | tolerant padding + URL-safe fallback |
 | Publish safety | overwrites repo on every run | — | `ALERT_MIN_CONFIGS` guard refuses to overwrite on bad runs |
 | TLS | strict (`allowInsecure=False`) | — | `ALLOW_INSECURE` (default on) avoids false negatives |
+| Protocols | vless/vmess/trojan/ss only | — | **+ hysteria2 (`hy2://`, `hysteria2://`)** incl. salamander obfs |
 | Unused tunables | `MAX_ERROR_RATE`, `EXTRA_ROUNDS` dead code | wired up / removed | `ALERT_MIN_CONFIGS` now enforced |
 | Tests / CI / Docker | none | pytest + ruff + GitHub Actions + Dockerfile | + real SOCKS5 regression test |
 
@@ -29,7 +30,7 @@ with a tested, configurable, container-friendly package.
 src/vpn_tester/
 ├── config.py        # all settings from config.env / env vars
 ├── models.py        # Config dataclass (latency, error rate, percentiles)
-├── parsers.py       # URI → Xray JSON (vless/vmess/trojan/ss, ws/grpc/reality…)
+├── parsers.py       # URI → Xray JSON (vless/vmess/trojan/ss/hysteria2, ws/grpc/reality…)
 ├── subscription.py  # download + decode (base64 / JSON / plain)
 ├── geoip.py         # exit-country via 3 providers + cache
 ├── tcp_ping.py      # cheap TCP pre-filter

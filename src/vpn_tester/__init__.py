@@ -13,4 +13,4 @@ Reasons this version is better than v1:
 - Containerized with healthcheck; logging rotates.
 """
 
-__version__ = "2.1.0"
+__version__ = "2.2.0"
