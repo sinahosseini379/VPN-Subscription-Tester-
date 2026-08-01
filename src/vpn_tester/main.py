@@ -27,7 +27,7 @@ log = logging.getLogger("vpn_tester")
 
 
 def setup_logging(settings, verbose: bool) -> None:
-    level = logging.DEBUG if verbose else getattr(settings.log_level, logging.INFO)
+    level = logging.DEBUG if verbose else getattr(logging, settings.log_level, logging.INFO)
 
     handlers: list[logging.Handler] = [logging.StreamHandler(sys.stdout)]
     if settings.log_file:
