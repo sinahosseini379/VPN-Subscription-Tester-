@@ -10,6 +10,7 @@ import shutil
 import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from . import __version__
 from .config import load_settings
@@ -103,33 +104,53 @@ async def run_once(settings, *, do_push: bool) -> bool:
     return True
 
 
-def seconds_until_next_run(schedule_time: str, now: datetime.datetime | None = None) -> float:
-    """Seconds until the next occurrence of the HH:MM schedule (local time).
+def seconds_until_next_run(
+    schedule_time: str,
+    now: datetime.datetime | None = None,
+    tz_name: str = "Asia/Tehran",
+) -> float:
+    """Seconds until the next occurrence of HH:MM in the given timezone.
 
-    Raises ValueError for malformed times. If the time already passed today,
-    the target is the same time tomorrow.
+    `now` defaults to the current UTC instant; a naive `now` is treated as
+    UTC. Raises ValueError for malformed times or unknown timezones. If the
+    time already passed in that timezone, the target is the same time tomorrow.
     """
-    now = now or datetime.datetime.now()
+    now = now or datetime.datetime.now(datetime.timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=datetime.timezone.utc)
+    try:
+        tz = ZoneInfo(tz_name)
+    except ZoneInfoNotFoundError:
+        raise ValueError(f"Unknown timezone {tz_name!r}") from None
+
     try:
         hour, minute = (int(p) for p in schedule_time.split(":", 1))
     except (ValueError, TypeError):
         raise ValueError(f"Invalid SCHEDULE_TIME {schedule_time!r}: expected 'HH:MM'") from None
     if not (0 <= hour <= 23 and 0 <= minute <= 59):
         raise ValueError(f"Invalid SCHEDULE_TIME {schedule_time!r}: hour 0-23, minute 0-59")
-    target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
-    if target <= now:
-        target += datetime.timedelta(days=1)
-    return (target - now).total_seconds()
+
+    now_tz = now.astimezone(tz)
+    target = now_tz.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    target = target.astimezone(tz)
+    if target <= now_tz:
+        target = (target + datetime.timedelta(days=1)).astimezone(tz)
+    return (target - now_tz).total_seconds()
 
 
 async def _loop(settings, *, do_push: bool) -> None:
     while True:
         try:
-            wait = seconds_until_next_run(settings.schedule_time)
+            wait = seconds_until_next_run(settings.schedule_time, tz_name=settings.timezone)
         except ValueError as exc:
             log.error("%s", exc)
             return
-        log.info("Next run scheduled at %s (in %d s)", settings.schedule_time, int(wait))
+        log.info(
+            "Next run scheduled at %s %s (in %d s)",
+            settings.schedule_time,
+            settings.timezone,
+            int(wait),
+        )
         await asyncio.sleep(wait)
         try:
             ok = await run_once(settings, do_push=do_push)
@@ -165,9 +186,7 @@ def cli(argv=None) -> int:
     parser.add_argument(
         "--config", default="config.env", help="env file with settings (default: config.env)"
     )
-    parser.add_argument(
-        "--once", action="store_true", help="run a single pipeline and exit"
-    )
+    parser.add_argument("--once", action="store_true", help="run a single pipeline and exit")
     parser.add_argument("--no-push", action="store_true", help="skip the GitHub push step")
     parser.add_argument("--verbose", action="store_true", help="debug logging")
     args = parser.parse_args(argv)

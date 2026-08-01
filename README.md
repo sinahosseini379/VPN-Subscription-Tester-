@@ -52,7 +52,7 @@ cp config.env.example config.env   # fill GITHUB_TOKEN (fine-grained, repo Conte
 # 3. Run once
 python -m vpn_tester.main --once
 
-# 4. Run forever (runs once daily at SCHEDULE_TIME, default 04:04 local time)
+# 4. Run forever (runs once daily at SCHEDULE_TIME in TIMEZONE, default 04:04 Asia/Tehran)
 python -m vpn_tester.main
 ```
 
@@ -77,7 +77,8 @@ The image bundles the latest Xray-core and runs the loop with a healthcheck.
 ## Config knobs (config.env)
 
 `CONFIGS_PER_COUNTRY` (best N per allowed country, in list order), `SCHEDULE_TIME`
-(one run per day, HH:MM local time), `URL_TEST_ROUNDS`,
+(one run per day, HH:MM), `TIMEZONE` (IANA zone for the schedule, default
+`Asia/Tehran`), `URL_TEST_ROUNDS`,
 `TCP_PING_TRIES`, `TCP_PING_MIN_SUCCESS`, `MAX_ERROR_RATE`,
 `MAX_CONCURRENT`, `MAX_SUBSCRIPTION_URLS`,
 `ALLOWED_COUNTRIES` (default `DE,FI,NL,GB,US,TR`), `GEOIP_PROVIDERS`,
