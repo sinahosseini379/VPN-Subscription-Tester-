@@ -70,7 +70,7 @@ class Settings:
     tcp_ping_tries: int = 5
     tcp_ping_min_success: int = 4
     max_error_rate: float = 0.15
-    loop_interval_minutes: int = 90
+    schedule_time: str = "04:04"
     max_concurrent: int = 10
     xray_startup_timeout: float = 15.0
     socks_port_base: int = 20000
@@ -179,7 +179,7 @@ class Settings:
             tcp_ping_tries=_i("TCP_PING_TRIES", cls.tcp_ping_tries),
             tcp_ping_min_success=_i("TCP_PING_MIN_SUCCESS", cls.tcp_ping_min_success),
             max_error_rate=_f("MAX_ERROR_RATE", cls.max_error_rate),
-            loop_interval_minutes=_i("LOOP_INTERVAL_MINUTES", cls.loop_interval_minutes),
+            schedule_time=_s("SCHEDULE_TIME", cls.schedule_time),
             max_concurrent=_i("MAX_CONCURRENT", cls.max_concurrent),
             xray_startup_timeout=_f("XRAY_STARTUP_TIMEOUT", cls.xray_startup_timeout),
             socks_port_base=_i("SOCKS_PORT_BASE", cls.socks_port_base),

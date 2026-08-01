@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import datetime
 import logging
 import shutil
 import sys
@@ -102,8 +103,34 @@ async def run_once(settings, *, do_push: bool) -> bool:
     return True
 
 
+def seconds_until_next_run(schedule_time: str, now: datetime.datetime | None = None) -> float:
+    """Seconds until the next occurrence of the HH:MM schedule (local time).
+
+    Raises ValueError for malformed times. If the time already passed today,
+    the target is the same time tomorrow.
+    """
+    now = now or datetime.datetime.now()
+    try:
+        hour, minute = (int(p) for p in schedule_time.split(":", 1))
+    except (ValueError, TypeError):
+        raise ValueError(f"Invalid SCHEDULE_TIME {schedule_time!r}: expected 'HH:MM'") from None
+    if not (0 <= hour <= 23 and 0 <= minute <= 59):
+        raise ValueError(f"Invalid SCHEDULE_TIME {schedule_time!r}: hour 0-23, minute 0-59")
+    target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    if target <= now:
+        target += datetime.timedelta(days=1)
+    return (target - now).total_seconds()
+
+
 async def _loop(settings, *, do_push: bool) -> None:
     while True:
+        try:
+            wait = seconds_until_next_run(settings.schedule_time)
+        except ValueError as exc:
+            log.error("%s", exc)
+            return
+        log.info("Next run scheduled at %s (in %d s)", settings.schedule_time, int(wait))
+        await asyncio.sleep(wait)
         try:
             ok = await run_once(settings, do_push=do_push)
             if not ok and settings.alert_webhook:
@@ -112,8 +139,6 @@ async def _loop(settings, *, do_push: bool) -> None:
             log.exception("Pipeline error")
             if settings.alert_webhook:
                 await _send_alert(settings, "VPN tester pipeline crashed.")
-        log.info("Sleeping %d minutes...", settings.loop_interval_minutes)
-        await asyncio.sleep(60 * settings.loop_interval_minutes)
 
 
 async def _send_alert(settings, message: str) -> None:
@@ -141,7 +166,7 @@ def cli(argv=None) -> int:
         "--config", default="config.env", help="env file with settings (default: config.env)"
     )
     parser.add_argument(
-        "--once", action="store_true", help="run a single pipeline and exit (no 90-min loop)"
+        "--once", action="store_true", help="run a single pipeline and exit"
     )
     parser.add_argument("--no-push", action="store_true", help="skip the GitHub push step")
     parser.add_argument("--verbose", action="store_true", help="debug logging")
