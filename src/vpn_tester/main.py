@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
-import shutil
 import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -45,27 +44,6 @@ def setup_logging(settings, verbose: bool) -> None:
     )
     # Mirror every log line into the dashboard's ring buffer.
     logging.getLogger().addHandler(LogCapture(reporter))
-
-
-def find_xray(settings) -> str:
-    candidates = [
-        settings.xray_bin,
-        "xray",
-        "/usr/local/bin/xray",
-        "/usr/bin/xray",
-        str(Path.home() / ".local/bin/xray"),
-        str(Path(__file__).resolve().parent.parent.parent / "xray"),
-        str(Path(__file__).resolve().parent.parent.parent / "bin" / "xray"),
-    ]
-    for cand in candidates:
-        if cand:
-            path = shutil.which(cand)
-            if path:
-                return path
-    raise FileNotFoundError(
-        "xray binary not found. Install from https://github.com/XTLS/Xray-core/releases "
-        "or set XRAY_BIN=/path/to/xray."
-    )
 
 
 def load_sub_urls(settings) -> list[str]:

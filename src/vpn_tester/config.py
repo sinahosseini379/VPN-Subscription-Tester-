@@ -140,6 +140,20 @@ class Settings:
     dashboard_host: str = "0.0.0.0"
     dashboard_port: int = 30445
 
+    # -- Incremental runs ---------------------------------------------------
+    incremental: bool = True
+
+    # -- Core management ----------------------------------------------------
+    auto_update_cores: bool = True
+    cores_dir: str = "cores"
+
+    # -- Subscription naming ------------------------------------------------
+    subscription_name: str = "Fiddel"
+    subscription_update_interval_hours: int = 24
+
+    # -- Output naming ------------------------------------------------------
+    output_naming_format: str = "{country} | {num:02d}"
+
     # -- Runtime bookkeeping -------------------------------------------------
     config_file: str = "config.env"  # env file used to load settings
 
@@ -219,6 +233,7 @@ class Settings:
             request_timeout=_f("REQUEST_TIMEOUT", cls.request_timeout),
             download_timeout=_f("DOWNLOAD_TIMEOUT", cls.download_timeout),
             max_subscription_urls=_i("MAX_SUBSCRIPTION_URLS", cls.max_subscription_urls),
+            incremental=_b("INCREMENTAL", cls.incremental),
             test_urls=test_urls or DEFAULT_TEST_URLS,
             allowed_countries=allowed or DEFAULT_ALLOWED_COUNTRIES,
             subscriptions_file=_s("SUBSCRIPTIONS_FILE", cls.subscriptions_file),
@@ -230,15 +245,6 @@ class Settings:
             log_backup_count=_i("LOG_BACKUP_COUNT", cls.log_backup_count),
             xray_bin=_s("XRAY_BIN", cls.xray_bin),
             xray_extra_args=extra_args,
-            cores_dir=_s("CORES_DIR", cls.cores_dir),
-            auto_update_cores=_b("AUTO_UPDATE_CORES", cls.auto_update_cores),
-            sing_box_bin=_s("SING_BOX_BIN", cls.sing_box_bin),
-            hysteria_bin=_s("HYSTERIA_BIN", cls.hysteria_bin),
-            incremental=_b("INCREMENTAL", cls.incremental),
-            subscription_name=_s("SUBSCRIPTION_NAME", cls.subscription_name),
-            subscription_interval_hours=_i(
-                "SUBSCRIPTION_INTERVAL_HOURS", cls.subscription_interval_hours
-            ),
             geoip_providers=providers or DEFAULT_GEOIP_PROVIDERS,
             github_token=_s("GITHUB_TOKEN", cls.github_token),
             github_owner=_s("GITHUB_OWNER", cls.github_owner),
@@ -252,6 +258,13 @@ class Settings:
             dashboard_enabled=_b("DASHBOARD_ENABLED", cls.dashboard_enabled),
             dashboard_host=_s("DASHBOARD_HOST", cls.dashboard_host),
             dashboard_port=_i("DASHBOARD_PORT", cls.dashboard_port),
+            auto_update_cores=_b("AUTO_UPDATE_CORES", cls.auto_update_cores),
+            cores_dir=_s("CORES_DIR", cls.cores_dir),
+            subscription_name=_s("SUBSCRIPTION_NAME", cls.subscription_name),
+            subscription_update_interval_hours=_i(
+                "SUBSCRIPTION_UPDATE_INTERVAL_HOURS", cls.subscription_update_interval_hours
+            ),
+            output_naming_format=_s("OUTPUT_NAMING_FORMAT", cls.output_naming_format),
             config_file=str(env_file),
         )
 

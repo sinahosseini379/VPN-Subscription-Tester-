@@ -73,7 +73,9 @@ def test_write_subscription_roundtrip(tmp_path):
     )
     write_subscription(configs, s)
     out = (tmp_path / "best.txt").read_text(encoding="utf-8")
-    decoded = _b64.b64decode(out).decode()
+    # skip header comments
+    encoded = "\n".join(line for line in out.splitlines() if not line.startswith("#"))
+    decoded = _b64.b64decode(encoded).decode()
     # the URI is rewritten with a URL-encoded fragment name (Country | NN)
     assert decoded.startswith("vless://x@a.com:443#")
     assert unquote(decoded.split("#", 1)[1]) == "Germany | 01"
