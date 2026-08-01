@@ -420,11 +420,12 @@ async function refreshConfigs() {
       const name = (c.country_name ? (c.flag + " " + c.country_name) : (c.name || "config")) + "  #" + (i + 1);
       const lat = c.avg_latency_ms != null ? Math.round(c.avg_latency_ms) + "ms" : "-";
       const err = c.weighted_error_rate != null ? Math.round(c.weighted_error_rate * 100) + "%" : "-";
-      return "<tr><td>" + name + "</td><td class=\"uri\">" + c.uri + "</td>" +
-        "<td>" + lat + "</td><td>" + err + "</td>" +
-        "<td><button class=\"mini\" onclick='copyUri(" + JSON.stringify(c.uri) + ")'>Copy</button></td></tr>";
+      const uriJson = JSON.stringify(c.uri);
+      return `<tr><td>${name}</td><td class="uri">${c.uri}</td>` +
+        `<td>${lat}</td><td>${err}</td>` +
+        `<td><button class="mini" onclick='copyUri(${uriJson})'>Copy</button></td></tr>`;
     }).join("");
-    box.innerHTML = "<table><thead><tr><th>Name</th><th>URI</th><th>Latency</th><th>Errors</th><th></th></tr></thead><tbody>" + rows + "</tbody></table>";
+    box.innerHTML = `<table><thead><tr><th>Name</th><th>URI</th><th>Latency</th><th>Errors</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
   } catch (e) { console.error(e); }
 }
 
@@ -452,9 +453,9 @@ async function refreshSubs() {
     $("subMax").textContent = d.max;
     const ul = $("subs");
     ul.innerHTML = d.urls.length ? d.urls.map(u =>
-      "<li><span class=\"url\">" + u + "</span>" +
-      "<button class=\"mini danger\" onclick='delSub(" + JSON.stringify(u) + ")'>Remove</button></li>"
-    ).join("") : '<li><span class="url" style="color:#8b949e">No subscriptions configured.</span></li>';
+      `<li><span class="url">${u}</span>` +
+      `<button class="mini danger" onclick='delSub(${JSON.stringify(u)})'>Remove</button></li>`
+    ).join("") : `<li><span class="url" style="color:#8b949e">No subscriptions configured.</span></li>`;
   } catch (e) { console.error(e); }
 }
 

@@ -2,13 +2,18 @@ from __future__ import annotations
 
 import base64
 import json
+import os
+import re
+import shutil
+import subprocess
+import tempfile
 
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
 
 from vpn_tester.config import Settings
 from vpn_tester.runtime import RunCoordinator
-from vpn_tester.web import _load_configs, _update_env, create_app
+from vpn_tester.web import HTML, _load_configs, _update_env, create_app
 
 
 async def _noop_run(settings, *, do_push: bool = True) -> bool:
@@ -122,3 +127,22 @@ async def test_api_flow(tmp_path):
         r = await client.post("/api/run")
         assert r.status == 200
         assert (await r.json())["started"] is True
+
+
+def test_index_js_is_valid_javascript():
+    """The served <script> block must parse, otherwise every dashboard button dies."""
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node not installed")
+
+    match = re.search(r"<script>(.*?)</script>", HTML, re.S)
+    assert match, "no <script> block found in dashboard HTML"
+
+    fd, path = tempfile.mkstemp(suffix=".js")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(match.group(1))
+        result = subprocess.run([node, "--check", path], capture_output=True, text=True, timeout=30)
+        assert result.returncode == 0, result.stderr
+    finally:
+        os.unlink(path)
