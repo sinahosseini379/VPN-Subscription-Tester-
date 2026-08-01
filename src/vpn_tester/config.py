@@ -101,8 +101,23 @@ class Settings:
     log_backup_count: int = 5
 
     # -- Xray ---------------------------------------------------------------
-    xray_bin: str = ""  # empty = search PATH + common locations
+    xray_bin: str = ""  # empty = search PATH + common locations, or auto-managed core
     xray_extra_args: list[str] = field(default_factory=list)
+
+    # -- Managed cores (auto-download + auto-update from GitHub releases) ----
+    cores_dir: str = "cores"
+    auto_update_cores: bool = True
+    sing_box_bin: str = ""  # empty = auto-managed under cores_dir
+    hysteria_bin: str = ""  # empty = auto-managed under cores_dir
+
+    # -- Incremental runs -----------------------------------------------------
+    # From the second run onward, keep previous configs that still work and only
+    # replace the dead ones (instead of publishing a fresh list every time).
+    incremental: bool = True
+
+    # -- Subscription profile (name + auto-update interval for clients) ------
+    subscription_name: str = "Fiddel"
+    subscription_interval_hours: int = 24
 
     # -- Geo-IP providers (queried in order, first success wins) ------------
     geoip_providers: list[str] = field(default_factory=lambda: list(DEFAULT_GEOIP_PROVIDERS))
@@ -215,6 +230,15 @@ class Settings:
             log_backup_count=_i("LOG_BACKUP_COUNT", cls.log_backup_count),
             xray_bin=_s("XRAY_BIN", cls.xray_bin),
             xray_extra_args=extra_args,
+            cores_dir=_s("CORES_DIR", cls.cores_dir),
+            auto_update_cores=_b("AUTO_UPDATE_CORES", cls.auto_update_cores),
+            sing_box_bin=_s("SING_BOX_BIN", cls.sing_box_bin),
+            hysteria_bin=_s("HYSTERIA_BIN", cls.hysteria_bin),
+            incremental=_b("INCREMENTAL", cls.incremental),
+            subscription_name=_s("SUBSCRIPTION_NAME", cls.subscription_name),
+            subscription_interval_hours=_i(
+                "SUBSCRIPTION_INTERVAL_HOURS", cls.subscription_interval_hours
+            ),
             geoip_providers=providers or DEFAULT_GEOIP_PROVIDERS,
             github_token=_s("GITHUB_TOKEN", cls.github_token),
             github_owner=_s("GITHUB_OWNER", cls.github_owner),

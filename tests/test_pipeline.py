@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import base64
+import json
+
 from vpn_tester.config import Settings
 from vpn_tester.models import Config
-from vpn_tester.pipeline import select_top
+from vpn_tester.pipeline import assign_indices, load_previous_configs, merge_incremental, select_top
 
 
 def _cfg(
@@ -72,3 +75,65 @@ def test_select_top_empty_country_skipped():
     s = Settings(configs_per_country=2)
     top = select_top([_cfg("us1", "US", [50])], s)
     assert [c.name for c in top] == ["us1"]
+
+
+def test_assign_indices_global_numbering():
+    configs = [_cfg("de", "DE", [50]), _cfg("us", "US", [60]), _cfg("tr", "TR", [70])]
+    assign_indices(configs)
+    assert [c.index for c in configs] == [1, 2, 3]
+    assert configs[0].display_name() == "DE | 01"
+    assert configs[2].display_name() == "TR | 03"
+
+
+def test_load_previous_configs(tmp_path):
+    uris = ["vless://a@x.com:443#A", "vless://b@y.com:443#B"]
+    out = tmp_path / "best.txt"
+    out.write_text(base64.b64encode("\n".join(uris).encode()).decode(), encoding="utf-8")
+    meta = tmp_path / "best.txt.meta.json"
+    meta.write_text(
+        json.dumps(
+            {
+                "items": [
+                    {"country": "DE", "country_name": "Germany", "index": 1},
+                    {"country": "US", "country_name": "United States", "index": 2},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    s = Settings(output_file=str(out), metadata_file=str(meta))
+    prev = load_previous_configs(s)
+    assert len(prev) == 2
+    assert prev[0].uri == uris[0]
+    assert prev[0].country == "DE"
+    assert prev[0].index == 1
+
+
+def test_load_previous_configs_missing_file(tmp_path):
+    s = Settings(output_file=str(tmp_path / "nope.txt"), metadata_file=str(tmp_path / "nope.meta"))
+    assert load_previous_configs(s) == []
+
+
+def test_load_previous_configs_bad_base64(tmp_path):
+    out = tmp_path / "best.txt"
+    out.write_text("!!!not-base64!!!", encoding="utf-8")
+    s = Settings(output_file=str(out), metadata_file=str(tmp_path / "m.meta"))
+    assert load_previous_configs(s) == []
+
+
+def test_merge_incremental_prefers_previous_and_dedupes():
+    s = Settings(configs_per_country=2)  # 6 countries -> cap 12
+    old = [_cfg("old1", "DE", [10]), _cfg("old2", "DE", [20])]
+    new = [_cfg("old1", "DE", [99]), _cfg("new1", "US", [30]), _cfg("new2", "TR", [40])]
+    merged = merge_incremental(new, old, s)
+    # old1 (from previous) wins the dedupe and comes first
+    assert [c.name for c in merged] == ["old1", "old2", "new1", "new2"]
+    assert len(merged) == 4
+
+
+def test_merge_incremental_caps_output():
+    s = Settings(configs_per_country=1)  # 6 countries -> cap 6
+    old = [_cfg(f"old{i}", "DE", [10]) for i in range(5)]
+    new = [_cfg(f"new{i}", "US", [10]) for i in range(5)]
+    merged = merge_incremental(new, old, s)
+    assert len(merged) == 6

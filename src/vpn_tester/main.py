@@ -12,6 +12,7 @@ from pathlib import Path
 
 from . import __version__
 from .config import load_settings
+from .cores import ensure_cores
 from .github_push import push_to_github
 from .output import write_subscription
 from .pipeline import run_pipeline
@@ -96,7 +97,8 @@ async def run_once(settings, *, do_push: bool) -> bool:
     sub_urls = load_sub_urls(settings)
     log.info("Loaded %d subscription(s)", len(sub_urls))
     try:
-        top = await run_pipeline(sub_urls, find_xray(settings), settings)
+        cores = await ensure_cores(settings)
+        top = await run_pipeline(sub_urls, cores, settings)
         if not top:
             log.error("No configs survived; nothing written.")
             reporter.finish(False)

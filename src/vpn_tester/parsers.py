@@ -446,3 +446,193 @@ def build_xray_config(uri: str, socks_port: int, allow_insecure: bool = True) ->
     if parsed is None:
         return None
     return wrap_xray_config(parsed.outbound, socks_port=socks_port)
+
+
+# -- alternate cores (sing-box / hysteria) -------------------------------
+
+
+def set_fragment(uri: str, name: str) -> str:
+    """Replace (or add) the #fragment of a URI with a URL-encoded node name."""
+    base = uri.split("#", 1)[0]
+    return f"{base}#{urllib.parse.quote(name)}"
+
+
+def _singbox_tls(stream: dict, server: str, port: int, allow_insecure: bool) -> dict:
+    security = stream.get("security")
+    if security not in ("tls", "reality"):
+        return {}
+    tls: dict = {"enabled": True}
+    if security == "tls":
+        ts = stream.get("tlsSettings", {})
+        tls["server_name"] = ts.get("serverName", "")
+        tls["insecure"] = bool(ts.get("allowInsecure", allow_insecure))
+        if ts.get("alpn"):
+            tls["alpn"] = ts["alpn"]
+        if ts.get("fingerprint"):
+            tls["utls"] = {"enabled": True, "fingerprint": ts["fingerprint"]}
+    else:
+        rs = stream.get("realitySettings", {})
+        sni = rs.get("serverName", "")
+        tls["server_name"] = sni
+        tls["utls"] = {"enabled": True, "fingerprint": rs.get("fingerprint") or "chrome"}
+        tls["reality"] = {
+            "enabled": True,
+            "public_key": rs.get("publicKey", ""),
+            "short_id": rs.get("shortId", ""),
+            "handshake": {"server": sni, "port": port},
+        }
+    return tls
+
+
+def _singbox_transport(stream: dict) -> dict | None:
+    net = stream.get("network")
+    if net == "ws":
+        ws = stream.get("wsSettings", {})
+        tr: dict = {"type": "ws", "path": ws.get("path", "/")}
+        host = (ws.get("headers") or {}).get("Host", "")
+        if host:
+            tr["headers"] = {"Host": host}
+        return tr
+    if net == "grpc":
+        return {
+            "type": "grpc",
+            "service_name": (stream.get("grpcSettings") or {}).get("serviceName", ""),
+        }
+    if net == "h2":
+        h = stream.get("httpSettings", {})
+        return {"type": "http", "host": h.get("host", []), "path": h.get("path", "/")}
+    if net == "httpupgrade":
+        h = stream.get("httpupgradeSettings", {})
+        return {"type": "httpupgrade", "host": h.get("host", ""), "path": h.get("path", "/")}
+    if net == "splithttp":
+        return {
+            "type": "splithttp",
+            "path": (stream.get("splithttpSettings") or {}).get("path", "/"),
+        }
+    if net == "tcp":
+        header = (stream.get("tcpSettings") or {}).get("header") or {}
+        if header.get("type") == "http":
+            req = header.get("request", {})
+            hosts = (req.get("headers") or {}).get("Host", [""])
+            paths = req.get("path", [""])
+            return {
+                "type": "http",
+                "host": hosts if isinstance(hosts, list) else [hosts],
+                "path": paths if isinstance(paths, list) else [paths],
+            }
+    return None
+
+
+def to_singbox_outbound(outbound: dict, allow_insecure: bool = True) -> dict | None:
+    """Convert an Xray-format outbound dict into a sing-box outbound dict."""
+    proto = outbound.get("protocol")
+    sets = outbound.get("settings", {})
+    stream = outbound.get("streamSettings", {})
+    try:
+        if proto in ("vless", "vmess"):
+            v = sets["vnext"][0]
+            user = v["users"][0]
+            ob: dict = {
+                "type": proto,
+                "tag": "proxy",
+                "server": v["address"],
+                "server_port": v["port"],
+            }
+            ob["uuid"] = user["id"]
+            if proto == "vless":
+                if user.get("flow"):
+                    ob["flow"] = user["flow"]
+            else:
+                ob["security"] = user.get("security", "auto")
+                ob["alter_id"] = int(user.get("alterId", 0))
+            tls = _singbox_tls(stream, v["address"], v["port"], allow_insecure)
+            if tls:
+                ob["tls"] = tls
+            tr = _singbox_transport(stream)
+            if tr:
+                ob["transport"] = tr
+            return ob
+        if proto in ("trojan", "shadowsocks", "hysteria2"):
+            s = sets["servers"][0]
+            ob = {"type": proto, "tag": "proxy", "server": s["address"], "server_port": s["port"]}
+            if proto == "trojan":
+                ob["password"] = s["password"]
+                tls = _singbox_tls(stream, s["address"], s["port"], allow_insecure)
+                if tls:
+                    ob["tls"] = tls
+                tr = _singbox_transport(stream)
+                if tr:
+                    ob["transport"] = tr
+            elif proto == "shadowsocks":
+                ob["method"] = s["method"]
+                ob["password"] = s["password"]
+            else:  # hysteria2
+                ts = s.get("tlsSettings", {})
+                tls = {
+                    "enabled": True,
+                    "server_name": ts.get("serverName", s["address"]),
+                    "insecure": bool(ts.get("allowInsecure", allow_insecure)),
+                }
+                if ts.get("fingerprint"):
+                    tls["utls"] = {"enabled": True, "fingerprint": ts["fingerprint"]}
+                ob["tls"] = tls
+                if s.get("obfs"):
+                    ob["obfs"] = {"type": s["obfs"], "password": s.get("obfs-password", "")}
+            return ob
+    except (KeyError, IndexError, TypeError, ValueError):
+        return None
+    return None
+
+
+def build_singbox_config(uri: str, socks_port: int, allow_insecure: bool = True) -> dict | None:
+    """URI + socks port -> full runnable sing-box JSON dict (fallback core)."""
+    parsed = parse_uri(uri, allow_insecure=allow_insecure)
+    if parsed is None:
+        return None
+    outbound = to_singbox_outbound(parsed.outbound, allow_insecure=allow_insecure)
+    if outbound is None:
+        return None
+    return {
+        "log": {"level": "error"},
+        "inbounds": [
+            {
+                "type": "socks",
+                "tag": "socks-in",
+                "listen": "127.0.0.1",
+                "listen_port": socks_port,
+            }
+        ],
+        "outbounds": [
+            outbound,
+            {"type": "direct", "tag": "direct"},
+            {"type": "block", "tag": "block"},
+        ],
+        "route": {"rules": [], "final": "proxy"},
+    }
+
+
+def build_hysteria_client_config(
+    uri: str, socks_port: int, allow_insecure: bool = True
+) -> str | None:
+    """URI + socks port -> hysteria (Hysteria2) client YAML string."""
+    parsed = parse_uri(uri, allow_insecure=allow_insecure)
+    if parsed is None or parsed.protocol != "hysteria2":
+        return None
+    s = parsed.outbound["settings"]["servers"][0]
+    ts = s.get("tlsSettings", {})
+    cfg = {
+        "server": f"{s['address']}:{s['port']}",
+        "auth": s["password"],
+        "tls": {
+            "sni": ts.get("serverName", s["address"]),
+            "insecure": bool(ts.get("allowInsecure", allow_insecure)),
+        },
+        "socks5": {"listen": f"127.0.0.1:{socks_port}"},
+    }
+    if ts.get("fingerprint"):
+        cfg["tls"]["fingerprint"] = ts["fingerprint"]
+    if s.get("obfs"):
+        cfg["obfs"] = {"type": s["obfs"], "salamander": {"password": s.get("obfs-password", "")}}
+    import yaml
+
+    return yaml.safe_dump(cfg, sort_keys=False)

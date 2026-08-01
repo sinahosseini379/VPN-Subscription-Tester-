@@ -6,11 +6,15 @@ import json
 import pytest
 
 from vpn_tester.parsers import (
+    build_hysteria_client_config,
+    build_singbox_config,
     build_xray_config,
     is_supported,
     is_valid_uri,
     parse_name,
     parse_uri,
+    set_fragment,
+    to_singbox_outbound,
 )
 
 VLESS_TCP = "vless://uuid123@server.example.com:443?security=none#My%20Node"
@@ -187,3 +191,75 @@ def test_build_xray_config_full():
     assert cfg["inbounds"][0]["port"] == 21000
     assert cfg["outbounds"][0]["tag"] == "proxy"
     assert cfg["outbounds"][0]["protocol"] == "vless"
+
+
+# -- alternate cores: sing-box / hysteria converters -------------------------
+
+
+def test_set_fragment_replaces_existing():
+    uri = "vless://u@x.com:443#Old%20Name"
+    assert set_fragment(uri, "Germany | 01") == "vless://u@x.com:443#Germany%20%7C%2001"
+
+
+def test_set_fragment_adds_when_missing():
+    assert set_fragment("vless://u@x.com:443", "A") == "vless://u@x.com:443#A"
+
+
+def test_to_singbox_vless_reality():
+    out = to_singbox_outbound(parse_uri(VLESS_REALITY).outbound)
+    assert out["type"] == "vless"
+    assert out["uuid"] == "uuid"
+    assert out["tls"]["reality"]["enabled"] is True
+    assert out["tls"]["reality"]["public_key"] == "pubkey"
+
+
+def test_to_singbox_vmess_ws():
+    out = to_singbox_outbound(parse_uri(VMESS).outbound)
+    assert out["type"] == "vmess"
+    assert out["server"] == "vm.example.com"
+    assert out["transport"]["type"] == "ws"
+    assert out["transport"]["path"] == "/ws"
+
+
+def test_to_singbox_trojan():
+    out = to_singbox_outbound(parse_uri(TROJAN).outbound)
+    assert out["type"] == "trojan"
+    assert out["password"] == "password123"
+    assert out["transport"]["type"] == "ws"
+
+
+def test_to_singbox_ss():
+    out = to_singbox_outbound(parse_uri(SS_OLD).outbound)
+    assert out["type"] == "shadowsocks"
+    assert out["method"] == "aes-256-gcm"
+    assert out["password"] == "password"
+
+
+def test_to_singbox_hysteria2():
+    out = to_singbox_outbound(parse_uri(HY2).outbound)
+    assert out["type"] == "hysteria2"
+    assert out["obfs"]["type"] == "salamander"
+
+
+def test_to_singbox_unsupported_returns_none():
+    assert to_singbox_outbound({"protocol": "tuic", "settings": {}}) is None
+
+
+def test_build_singbox_config_roundtrip():
+    cfg = build_singbox_config(VLESS_WS, socks_port=22000)
+    assert cfg is not None
+    assert cfg["inbounds"][0]["listen_port"] == 22000
+    assert cfg["outbounds"][0]["type"] == "vless"
+    assert cfg["route"]["final"] == "proxy"
+
+
+def test_build_hysteria_client_config_yaml():
+    text = build_hysteria_client_config(HY2, socks_port=22001)
+    assert text is not None
+    assert "server: hy.example.com:443" in text
+    assert "salamander" in text
+    assert "listen: 127.0.0.1:22001" in text
+
+
+def test_build_hysteria_client_config_rejects_non_hy2():
+    assert build_hysteria_client_config(VLESS_TCP, socks_port=22002) is None

@@ -129,6 +129,36 @@ async def test_api_flow(tmp_path):
         assert (await r.json())["started"] is True
 
 
+@pytest.mark.asyncio
+async def test_subscription_endpoint_headers(tmp_path):
+    settings = _make_settings(tmp_path)
+    content = base64.b64encode(b"vless://a@x.com:443#A").decode()
+    (tmp_path / "best_configs.txt").write_text(content, encoding="utf-8")
+    settings.subscription_name = "Fiddel"
+    settings.subscription_interval_hours = 24
+    coordinator = RunCoordinator(settings, run_once_fn=_noop_run)
+    app = create_app(settings, coordinator, env_file=str(tmp_path / "config.env"))
+
+    async with TestClient(TestServer(app)) as client:
+        r = await client.get("/subscription")
+        assert r.status == 200
+        assert (await r.text()) == content
+        assert r.headers["content-type"].startswith("text/plain")
+        assert r.headers["subscription-userinfo"] == "interval=86400"
+        assert r.headers["profile-update-interval"] == "86400"
+        assert r.headers["profile-title"] == base64.b64encode(b"Fiddel").decode()
+
+
+@pytest.mark.asyncio
+async def test_subscription_endpoint_404_before_publish(tmp_path):
+    settings = _make_settings(tmp_path)
+    coordinator = RunCoordinator(settings, run_once_fn=_noop_run)
+    app = create_app(settings, coordinator, env_file=str(tmp_path / "config.env"))
+    async with TestClient(TestServer(app)) as client:
+        r = await client.get("/subscription")
+        assert r.status == 404
+
+
 def test_index_js_is_valid_javascript():
     """The served <script> block must parse, otherwise every dashboard button dies."""
     node = shutil.which("node")

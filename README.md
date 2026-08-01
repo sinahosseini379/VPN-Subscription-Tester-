@@ -1,133 +1,122 @@
-# VPN Subscription Tester — professional edition
+<div dir="rtl">
 
-Download subscriptions → live-test **every** config through a real Xray process →
-filter by TCP reachability + exit-country → score by disruption% / latency →
-publish the best configs to GitHub automatically.
+# Fiddel — اشتراک VPN
 
-Replaces the original `vpn_tester.py` / `github_push.py` / `run.py` monolith
-with a tested, configurable, container-friendly package.
+اشتراک خودکار و زنده که بهترین سرورها را از میان ده‌ها کشور انتخاب و مرتب می‌کند.
+نام اشتراک **Fiddel** است و هر **۲۴ ساعت** یک‌بار خودش را به‌روزرسانی می‌کند.
 
-## What changed vs v1
+---
 
-| Area | v1 | v2 | v2.1 | v2.3 |
-|---|---|---|---|---|
-| GitHub push | `git` with the token embedded in the remote URL (leaks into `.git/config` & logs) | **GitHub Contents API**, Bearer header only — token never touches disk | nested output paths supported | — |
-| SOCKS proxy | — | broken: aiohttp's `proxy=` only speaks HTTP | **aiohttp-socks `ProxyConnector`** with `rdns=True` (DNS stays in-tunnel) | — |
-| Country check | unbounded process spawn | concurrency-limited by `MAX_CONCURRENT` | — | — |
-| Xray startup | fixed 1.5s sleep | **readiness polling** until SOCKS accepts | — | — |
-| URL test | any HTTP status counted as success | only **2xx/3xx** validated | weighted targets + per-target stats | — |
-| TCP pre-filter | unbounded | — | **concurrency-capped** (`TCP_CONCURRENCY`) + `MAX_CONFIGS` cap | — |
-| Base64 decode | — | fragile padding (`text + "=="`) | tolerant padding + URL-safe fallback | — |
-| Publish safety | overwrites repo on every run | — | `ALERT_MIN_CONFIGS` guard refuses to overwrite on bad runs | — |
-| TLS | strict (`allowInsecure=False`) | — | `ALLOW_INSECURE` (default on) avoids false negatives | — |
-| Protocols | vless/vmess/trojan/ss only | — | **+ hysteria2 (`hy2://`, `hysteria2://`)** incl. salamander obfs | — |
-| Unused tunables | `MAX_ERROR_RATE`, `EXTRA_ROUNDS` dead code | wired up / removed | `ALERT_MIN_CONFIGS` now enforced | — |
-| Tests / CI / Docker | none | pytest + ruff + GitHub Actions + Dockerfile | + real SOCKS5 regression test | — |
-| Web UI | none | — | — | **dashboard on `:30445`** (config list + copy, manual run, progress/logs, subscription & schedule editing) |
+## نحوه اتصال (راهنمای کاربر)
 
-## Layout
+### ۱. لینک اشتراک را کپی کنید
 
-```
-src/vpn_tester/
-├── config.py        # all settings from config.env / env vars
-├── models.py        # Config dataclass (latency, error rate, percentiles)
-├── parsers.py       # URI → Xray JSON (vless/vmess/trojan/ss/hysteria2, ws/grpc/reality…)
-├── subscription.py  # download + decode (base64 / JSON / plain)
-├── geoip.py         # exit-country via 3 providers + cache
-├── tcp_ping.py      # cheap TCP pre-filter
-├── xray_runner.py   # one Xray process per config, readiness polling, cleanup
-├── pipeline.py      # orchestration
-├── output.py        # best_configs.txt (base64) + meta.json
-├── github_push.py   # secure GitHub push (Contents API)
-├── runtime.py       # live progress reporter + run coordinator (single-flight)
-├── web.py           # dashboard (web UI) + JSON API
-└── main.py          # CLI: vpn-tester
-```
+لینک اشتراک را از این ریپو (یا صفحه داشبورد سرور) کپی کنید.
 
-## Quick start
+### ۲. در اپ موبایل خود اضافه کنید
+
+| اپلیکیشن | پلتفرم | روش |
+|---|---|---|
+| **Hiddify** | اندروید / iOS | «Add from clipboard» |
+| **v2rayNG** | اندروید | دکمه `+` ← «Import config from Clipboard» |
+| **Nekoray** | اندروید / دسکتاپ | «Import from clipboard» |
+| **Streisand** | iOS | «Add Subscription» ← لینک را بچسبانید |
+| **sing-box / SFA** | اندروید | «Import» ← لینک اشتراک |
+
+در بیشتر اپ‌ها کافیست **لینک را کپی کنید و در اپ بچسبانید**؛ اشتراک خودکار دانلود می‌شود.
+
+### ۳. از سرعت لذت ببرید 🌐
+
+سرورها به‌صورت خودکار با نام **«کشور | شماره»** (مثل `Germany | 01`) مرتب شده‌اند
+و فقط سالم‌ترین‌ها نگه داشته می‌شوند.
+
+---
+
+## سوالات متداول
+
+**اشتراک چند وقت یک‌بار به‌روز می‌شود؟**
+هر ۲۴ ساعت به‌صورت خودکار بررسی و اگر سروری از کار افتاده باشد با سرور سالم جایگزین می‌شود.
+
+**چرا بعضی سرورها حذف می‌شوند؟**
+سرورهایی که تست زنده را پاس نکنند (قطع، کند یا کشور نامجاز) از لیست حذف می‌شوند.
+
+**چطور نام سرورها را تشخیص دهم؟**
+هر سرور با فرمت `کشور | شماره` نام‌گذاری شده؛ شماره‌ها سراسری و ۰۱ به بعد هستند.
+
+</div>
+
+---
+
+<div dir="ltr">
+
+# Fiddel — VPN Subscription
+
+An automated, live subscription that picks and ranks the best servers across many
+countries. The profile name is **Fiddel** and it auto-updates every **24 hours**.
+
+---
+
+## How to connect (user guide)
+
+### 1. Copy the subscription link
+
+Copy the subscription URL from this repo (or from the dashboard page on the server).
+
+### 2. Add it in your mobile app
+
+| App | Platform | How |
+|---|---|---|
+| **Hiddify** | Android / iOS | "Add from clipboard" |
+| **v2rayNG** | Android | `+` button → "Import config from Clipboard" |
+| **Nekoray** | Android / Desktop | "Import from clipboard" |
+| **Streisand** | iOS | "Add Subscription" → paste the link |
+| **sing-box / SFA** | Android | "Import" → subscription link |
+
+In most apps you just **copy the link and paste it**; the subscription is fetched automatically.
+
+### 3. Enjoy high-speed connections 🌐
+
+Servers are named **"Country | Number"** (e.g. `Germany | 01`) and only the
+healthiest ones are kept — dead or slow servers are swapped out automatically.
+
+---
+
+## FAQ
+
+**How often does the subscription update?**
+Every 24 hours the tester re-verifies the servers; if one goes offline it is
+replaced by a healthy config automatically.
+
+**Why do some servers get removed?**
+Servers that fail the live test (down, too slow, or an unallowed exit country)
+are dropped from the list.
+
+**How do I read the server names?**
+Each server is labeled `Country | Number` with a global 01..NN numbering.
+
+</div>
+
+---
+
+## For administrators / developers
+
+This repository is the **technical home** of the project: download subscriptions,
+live-test every config through real proxy cores (Xray / sing-box / Hysteria2),
+filter by TCP reachability + exit country, score by error-rate / latency, and
+publish the best configs to GitHub automatically — with a built-in web dashboard.
+
+Technical docs (architecture, deployment, configuration, security, Docker) live
+in the [project wiki](../../wiki). End users only need the subscription link above.
+
+### Quick start (server)
 
 ```bash
-# 1. Install
-python -m venv .venv && source .venv/bin/activate   # or .venv\Scripts\activate
+python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-
-# 2. Configure
-cp config.env.example config.env   # fill GITHUB_TOKEN (fine-grained, repo Contents: R/W)
-# edit subscriptions.txt — one URL per line, max 10
-
-# 3. Run once
-python -m vpn_tester.main --once
-
-# 4. Run forever (runs once daily at SCHEDULE_TIME in TIMEZONE, default 04:04 Asia/Tehran)
-python -m vpn_tester.main
+cp config.env.example config.env   # fill GITHUB_TOKEN + settings
+python -m vpn_tester.main           # scheduled loop + dashboard on :30445
 ```
 
-## Dashboard
+Run tests: `pytest -q` · Lint: `ruff check src tests && ruff format src tests`
 
-In loop mode the process serves a web dashboard on **port 30445**
-(`http://<server-ip>:30445`). From it you can:
-
-- see the final config list and **copy any config** individually
-- trigger a **manual run** at any moment
-- watch a **progress bar + live logs** while a run is in progress
-- view, **add and remove** subscription URLs
-- change the **automatic run time / timezone** (persisted to `config.env`)
-
-Disable it with `DASHBOARD_ENABLED=false` (or `--no-dashboard`) and change the
-port with `DASHBOARD_PORT` (or `--port N`).
-
-### CLI
-
-```
-vpn-tester --once         run a single pipeline then exit
-vpn-tester --no-push      skip the GitHub upload
-vpn-tester --no-dashboard disable the web dashboard
-vpn-tester --port N       override DASHBOARD_PORT
-vpn-tester --config PATH  alternate env file
-vpn-tester --verbose      debug logging
-```
-
-## Docker
-
-```bash
-docker compose up -d --build
-docker compose run --rm tester vpn-tester --once
-```
-
-The image bundles the latest Xray-core and runs the loop with a healthcheck.
-
-## Config knobs (config.env)
-
-`CONFIGS_PER_COUNTRY` (best N per allowed country, in list order), `SCHEDULE_TIME`
-(one run per day, HH:MM), `TIMEZONE` (IANA zone for the schedule, default
-`Asia/Tehran`), `URL_TEST_ROUNDS`,
-`TCP_PING_TRIES`, `TCP_PING_MIN_SUCCESS`, `TCP_CONCURRENCY`, `MAX_CONFIGS`,
-`ALLOW_INSECURE`, `MAX_ERROR_RATE` (weighted by target),
-`MAX_CONCURRENT`, `MAX_SUBSCRIPTION_URLS`,
-`ALLOWED_COUNTRIES` (default `DE,FI,NL,GB,US,TR`), `GEOIP_PROVIDERS`,
-`XRAY_BIN`, `OUTPUT_FILE`, `METADATA_FILE`, `GITHUB_*`, `ALERT_WEBHOOK`
-(Telegram or ntfy), `ALERT_MIN_CONFIGS` (refuses to publish below this many
-configs), `TEST_URLS` (`Label,URL[,weight]` separated by `|`; weight changes
-how much a target counts toward the final score),
-`DASHBOARD_ENABLED` / `DASHBOARD_HOST` / `DASHBOARD_PORT` (default `30445`).
-
-The final output contains up to `CONFIGS_PER_COUNTRY` best configs for each
-allowed country, listed in `ALLOWED_COUNTRIES` order.
-
-## Security notes
-
-- `config.env` is gitignored; only `config.env.example` is committed.
-- Use a **fine-grained PAT** scoped to `Contents: read and write` on the repo,
-  never a full-account token.
-- The token is sent as a `Bearer` header and is never written into any git
-  remote/credential file.
-- Sharing VPN configs publicly may violate the upstream providers' ToS — keep
-  the output repo private if that is a concern.
-
-## Development
-
-```bash
-pip install -e ".[dev]"
-ruff check src tests && ruff format src tests
-pytest -q
-```
+</div>

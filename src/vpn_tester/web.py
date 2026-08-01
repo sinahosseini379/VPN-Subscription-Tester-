@@ -4,6 +4,7 @@
 Endpoints
 ---------
 GET  /                          -> dashboard UI (single HTML page)
+GET  /subscription              -> raw base64 subscription (profile-title/userinfo)
 GET  /api/status                -> run status + progress snapshot
 GET  /api/logs?after=N          -> incremental log lines
 GET  /api/configs               -> final configs (URIs + metadata) from disk
@@ -122,6 +123,29 @@ async def _status(_request: web.Request) -> web.Response:
     return web.json_response(reporter.snapshot())
 
 
+async def _subscription(request: web.Request) -> web.Response:
+    """Serve the published subscription with profile headers clients understand.
+
+    GitHub raw files can't carry `subscription-userinfo`/`profile-title`, so the
+    dashboard exposes the same bytes with the headers that make mobile apps
+    display the profile name and honour the auto-update interval.
+    """
+    settings: Settings = request.app[APP_SETTINGS]
+    out_path = Path(settings.output_file)
+    if not out_path.exists():
+        raise web.HTTPNotFound(text="No subscription has been published yet.")
+    content = out_path.read_text(encoding="utf-8").strip()
+    interval = settings.subscription_interval_hours * 3600
+    title_b64 = base64.b64encode(settings.subscription_name.encode("utf-8")).decode("ascii")
+    headers = {
+        "content-type": "text/plain; charset=utf-8",
+        "profile-title": title_b64,
+        "subscription-userinfo": f"interval={interval}",
+        "profile-update-interval": str(interval),
+    }
+    return web.Response(text=content, headers=headers)
+
+
 async def _logs(request: web.Request) -> web.Response:
     try:
         after = int(request.query.get("after", "0"))
@@ -224,6 +248,7 @@ def create_app(
 
     app.router.add_get("/", _index)
     app.router.add_get("/favicon.ico", _favicon)
+    app.router.add_get("/subscription", _subscription)
     app.router.add_get("/api/status", _status)
     app.router.add_get("/api/logs", _logs)
     app.router.add_get("/api/configs", _configs)

@@ -8,15 +8,17 @@ import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
+from . import __version__
 from .config import Settings
 from .models import Config
+from .parsers import set_fragment
 
 log = logging.getLogger(__name__)
 
 
 def write_subscription(configs: list[Config], settings: Settings) -> dict:
     """Write best_configs.txt (base64) + .meta.json. Returns the metadata dict."""
-    uris = [c.uri for c in configs]
+    uris = [set_fragment(c.uri, c.display_name()) for c in configs]
     payload = "\n".join(uris)
     encoded = base64.b64encode(payload.encode("utf-8")).decode("ascii")
 
@@ -45,7 +47,7 @@ def build_metadata(configs: list[Config], settings: Settings) -> dict:
     weights = {label: w for label, _url, w in settings.test_urls}
 
     return {
-        "version": "2.3.0",
+        "version": __version__,
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "count": len(configs),
         "avg_latency_ms": _round2(avg_lat),
@@ -58,8 +60,10 @@ def build_metadata(configs: list[Config], settings: Settings) -> dict:
         "items": [
             {
                 "name": c.display_name(),
+                "index": c.index,
                 "protocol": c.protocol,
                 "country": c.country,
+                "country_name": c.country_name,
                 "error_rate": _round2(c.error_rate),
                 "weighted_error_rate": _round2(c.weighted_error_rate(weights)),
                 "avg_latency_ms": _round2(c.avg_latency) if c.latencies else None,

@@ -18,6 +18,7 @@ class Config:
     country: str = ""
     country_name: str = ""
     flag: str = ""
+    index: int = 0  # global output number (1-based), set before publishing
     target_stats: dict[str, dict[str, int]] = field(default_factory=dict)
 
     def record(self, label: str, ok: bool) -> None:
@@ -60,6 +61,8 @@ class Config:
         return ordered[lo] + (ordered[hi] - ordered[lo]) * (k - lo)
 
     def display_name(self) -> str:
+        if self.index:
+            return f"{self.country_name or self.country} | {self.index:02d}"
         if self.flag:
             return f"{self.country_name or self.country} {self.flag}".strip()
         return self.name or self.uri[:50]
