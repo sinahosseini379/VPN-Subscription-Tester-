@@ -298,13 +298,34 @@ def merge_incremental(
     cap = settings.configs_per_country * max(1, len(settings.allowed_countries))
     merged: list[Config] = []
     seen: set[str] = set()
-    for c in [*previous_alive, *new_top]:
+
+    # First, add still-working previous configs (up to cap per country)
+    per_country_count: dict[str, int] = {}
+    for c in previous_alive:
+        if len(merged) >= cap:
+            break
+        country = c.country or "?"
+        if per_country_count.get(country, 0) >= settings.configs_per_country:
+            continue
         if c.uri in seen:
             continue
         seen.add(c.uri)
         merged.append(c)
+        per_country_count[country] = per_country_count.get(country, 0) + 1
+
+    # Then fill gaps with new top configs
+    for c in new_top:
         if len(merged) >= cap:
             break
+        country = c.country or "?"
+        if per_country_count.get(country, 0) >= settings.configs_per_country:
+            continue
+        if c.uri in seen:
+            continue
+        seen.add(c.uri)
+        merged.append(c)
+        per_country_count[country] = per_country_count.get(country, 0) + 1
+
     return merged
 
 

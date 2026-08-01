@@ -132,8 +132,12 @@ def test_merge_incremental_prefers_previous_and_dedupes():
 
 
 def test_merge_incremental_caps_output():
-    s = Settings(configs_per_country=1)  # 6 countries -> cap 6
+    # Per-country cap: configs_per_country=1, 6 allowed countries -> cap 6 total
+    # But only DE (old) and US (new) configs available -> max 1 per country = 2 total
+    s = Settings(configs_per_country=1)
     old = [_cfg(f"old{i}", "DE", [10]) for i in range(5)]
     new = [_cfg(f"new{i}", "US", [10]) for i in range(5)]
     merged = merge_incremental(new, old, s)
-    assert len(merged) == 6
+    assert len(merged) == 2  # 1 DE + 1 US
+    assert merged[0].country == "DE"
+    assert merged[1].country == "US"

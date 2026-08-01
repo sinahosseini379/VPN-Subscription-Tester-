@@ -24,13 +24,7 @@ def write_subscription(configs: list[Config], settings: Settings) -> dict:
 
     out_path = Path(settings.output_file)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # Add subscription metadata header (decoded format for VPN apps)
-    header = (
-        f"# {settings.subscription_name}\n"
-        f"# update_interval_hours={settings.subscription_update_interval_hours}\n"
-    )
-    out_path.write_text(header + encoded, encoding="utf-8")
+    out_path.write_text(encoded, encoding="utf-8")
     log.info("Subscription written -> %s (%d configs)", out_path, len(configs))
 
     meta = build_metadata(configs, settings)
