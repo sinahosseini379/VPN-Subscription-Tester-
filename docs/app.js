@@ -129,6 +129,32 @@ $("langToggle").addEventListener("click", () => {
   applyLang(isFa() ? "en" : "fa");
 });
 
+// --- theme toggle (dark default, light option, remembers choice) ---
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  localStorage.setItem("fiddel_theme", theme);
+  const btn = $("themeToggle");
+  const toLight = theme === "dark";
+  btn.setAttribute(
+    "aria-label",
+    isFa()
+      ? toLight ? "روشن کردن تم" : "تیره کردن تم"
+      : toLight ? "Switch to light theme" : "Switch to dark theme",
+  );
+}
+$("themeToggle").addEventListener("click", () => {
+  const current = document.documentElement.getAttribute("data-theme") || "dark";
+  applyTheme(current === "dark" ? "light" : "dark");
+});
+
+// restore saved theme, else honour the OS preference
+const savedTheme = localStorage.getItem("fiddel_theme");
+if (savedTheme) {
+  applyTheme(savedTheme);
+} else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) {
+  applyTheme("light");
+}
+
 // restore saved language
 const saved = localStorage.getItem("fiddel_lang");
 if (saved && saved !== "fa") applyLang(saved);
