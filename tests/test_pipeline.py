@@ -81,8 +81,36 @@ def test_assign_indices_global_numbering():
     configs = [_cfg("de", "DE", [50]), _cfg("us", "US", [60]), _cfg("tr", "TR", [70])]
     assign_indices(configs)
     assert [c.index for c in configs] == [1, 2, 3]
-    assert configs[0].display_name() == "DE | 01"
-    assert configs[2].display_name() == "TR | 03"
+    # A known country code always renders a flag, even without an explicit one.
+    assert configs[0].display_name() == "🇩🇪 DE | 01"
+    assert configs[2].display_name() == "🇹🇷 TR | 03"
+
+
+def test_load_previous_configs_restores_flag(tmp_path):
+    """Carried-forward configs must keep their flag across incremental runs."""
+    uris = ["vless://a@x.com:443#A", "vless://b@y.com:443#B"]
+    out = tmp_path / "best.txt"
+    out.write_text(base64.b64encode("\n".join(uris).encode()).decode(), encoding="utf-8")
+    meta = tmp_path / "best.txt.meta.json"
+    # First item has a stored flag; second predates the flag field -> derived.
+    meta.write_text(
+        json.dumps(
+            {
+                "items": [
+                    {"country": "DE", "country_name": "Germany", "flag": "🇩🇪", "index": 1},
+                    {"country": "GB", "country_name": "United Kingdom", "index": 2},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    s = Settings(output_file=str(out), metadata_file=str(meta))
+    prev = load_previous_configs(s)
+    assert prev[0].flag == "🇩🇪"
+    assert prev[0].display_name() == "🇩🇪 Germany | 01"
+    # Restored from the allow-list even though metadata had no flag field.
+    assert prev[1].flag == "🇬🇧"
+    assert prev[1].display_name() == "🇬🇧 United Kingdom | 02"
 
 
 def test_load_previous_configs(tmp_path):

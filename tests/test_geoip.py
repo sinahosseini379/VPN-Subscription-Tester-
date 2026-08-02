@@ -1,10 +1,20 @@
 from __future__ import annotations
 
-from vpn_tester.geoip import GeoCache, parse_country
+from vpn_tester.geoip import GeoCache, parse_country, provider_for_url
 
 
 def test_parse_country_ipinfo():
     assert parse_country({"country": "DE"}, "ipinfo") == "DE"
+
+
+def test_provider_for_url_is_scheme_agnostic():
+    # Same host, different scheme/path must resolve to the same provider so the
+    # ip-api.com fallback isn't silently treated as "unknown".
+    assert provider_for_url("http://ip-api.com/json/") == "ip_api"
+    assert provider_for_url("https://ip-api.com/json/") == "ip_api"
+    assert provider_for_url("https://ipinfo.io/json") == "ipinfo"
+    assert provider_for_url("https://ipapi.co/json/") == "ipapi"
+    assert provider_for_url("https://example.com/") == "unknown"
 
 
 def test_parse_country_ip_api():

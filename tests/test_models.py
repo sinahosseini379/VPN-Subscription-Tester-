@@ -2,7 +2,22 @@ from __future__ import annotations
 
 import pytest
 
-from vpn_tester.models import Config
+from vpn_tester.models import Config, flag_from_country_code
+
+
+def test_flag_from_country_code():
+    assert flag_from_country_code("DE") == "🇩🇪"
+    assert flag_from_country_code("us") == "🇺🇸"  # case-insensitive
+    assert flag_from_country_code("") == ""
+    assert flag_from_country_code("USA") == ""  # not 2 letters
+    assert flag_from_country_code("1A") == ""  # not alphabetic
+
+
+def test_config_flag_falls_back_to_code():
+    """A known country code renders a flag even with no explicit flag set."""
+    c = Config(uri="vless://x@y.com:443", country="NL", country_name="Netherlands")
+    assert c.flag_emoji() == "🇳🇱"
+    assert c.display_name() == "Netherlands 🇳🇱"
 
 
 def test_config_empty_stats():

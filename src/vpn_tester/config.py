@@ -140,17 +140,6 @@ class Settings:
     dashboard_host: str = "0.0.0.0"
     dashboard_port: int = 30445
 
-    # -- Incremental runs ---------------------------------------------------
-    incremental: bool = True
-
-    # -- Core management ----------------------------------------------------
-    auto_update_cores: bool = True
-    cores_dir: str = "cores"
-
-    # -- Subscription naming ------------------------------------------------
-    subscription_name: str = "Fiddel"
-    subscription_update_interval_hours: int = 24
-
     # -- Output naming ------------------------------------------------------
     output_naming_format: str = "{country} | {num:02d}"
 
@@ -261,8 +250,10 @@ class Settings:
             auto_update_cores=_b("AUTO_UPDATE_CORES", cls.auto_update_cores),
             cores_dir=_s("CORES_DIR", cls.cores_dir),
             subscription_name=_s("SUBSCRIPTION_NAME", cls.subscription_name),
-            subscription_update_interval_hours=_i(
-                "SUBSCRIPTION_UPDATE_INTERVAL_HOURS", cls.subscription_update_interval_hours
+            subscription_interval_hours=_i(
+                "SUBSCRIPTION_INTERVAL_HOURS",
+                # Accept the legacy name so old config.env files keep working.
+                _i("SUBSCRIPTION_UPDATE_INTERVAL_HOURS", cls.subscription_interval_hours),
             ),
             output_naming_format=_s("OUTPUT_NAMING_FORMAT", cls.output_naming_format),
             config_file=str(env_file),

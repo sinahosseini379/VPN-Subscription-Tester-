@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 from typing import Callable
+from urllib.parse import urlsplit
 
 import aiohttp
 
@@ -23,6 +24,23 @@ PROVIDERS = {
     "https://ipapi.co/json/": "ipapi",
     "http://ip-api.com/json/": "ip_api",
 }
+
+# Provider identity is keyed off the host, so the same parser is picked whether
+# the URL uses http/https or a slightly different path. Keeping this in sync with
+# PROVIDERS above is what stops a default like "https://ip-api.com/..." from
+# being treated as an unknown provider and silently failing to parse.
+_PROVIDER_BY_HOST = {
+    "ipinfo.io": "ipinfo",
+    "ipapi.co": "ipapi",
+    "ip-api.com": "ip_api",
+}
+
+
+def provider_for_url(url: str) -> str:
+    """Identify the geo-IP provider from a URL by its host (scheme-agnostic)."""
+    host = urlsplit(url).hostname or ""
+    return _PROVIDER_BY_HOST.get(host.lower(), "unknown")
+
 
 FetchCountry = Callable[["aiohttp.ClientSession", str, float], "str | None"]
 FetchIp = Callable[["aiohttp.ClientSession", float], "str | None"]
@@ -47,7 +65,7 @@ def parse_country(payload: dict, provider: str) -> str | None:
 
 async def fetch_country(session: aiohttp.ClientSession, url: str, timeout: float) -> str | None:
     """Query one geo-IP provider through the session's SOCKS tunnel."""
-    provider = PROVIDERS.get(url, "unknown")
+    provider = provider_for_url(url)
     try:
         to = aiohttp.ClientTimeout(connect=timeout, total=timeout + 5)
         async with session.get(url, timeout=to, ssl=False) as resp:

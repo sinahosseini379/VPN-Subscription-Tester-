@@ -4,6 +4,21 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+# Offset from ASCII 'A' to the Unicode "Regional Indicator Symbol" block. Two of
+# these letters in a row are what terminals and phones render as a flag emoji.
+_REGIONAL_INDICATOR_A = 0x1F1E6
+
+
+def flag_from_country_code(cc: str) -> str:
+    """Build a flag emoji from a 2-letter ISO country code (``"DE"`` -> 🇩🇪).
+
+    Returns ``""`` for anything that is not a plausible country code, so callers
+    can safely use ``config_flag or flag_from_country_code(cc)`` as a fallback.
+    """
+    if not cc or len(cc) != 2 or not cc.isalpha():
+        return ""
+    return "".join(chr(_REGIONAL_INDICATOR_A + ord(ch) - ord("A")) for ch in cc.upper())
+
 
 @dataclass
 class Config:
@@ -60,10 +75,15 @@ class Config:
         lo, hi = int(k), min(int(k) + 1, len(ordered) - 1)
         return ordered[lo] + (ordered[hi] - ordered[lo]) * (k - lo)
 
+    def flag_emoji(self) -> str:
+        """Flag for this config: the explicit one, else derived from the code."""
+        return self.flag or flag_from_country_code(self.country)
+
     def display_name(self) -> str:
+        flag = self.flag_emoji()
         if self.index:
-            flag_part = f"{self.flag} " if self.flag else ""
+            flag_part = f"{flag} " if flag else ""
             return f"{flag_part}{self.country_name or self.country} | {self.index:02d}"
-        if self.flag:
-            return f"{self.country_name or self.country} {self.flag}".strip()
+        if flag:
+            return f"{self.country_name or self.country} {flag}".strip()
         return self.name or self.uri[:50]

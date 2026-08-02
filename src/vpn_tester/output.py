@@ -64,6 +64,7 @@ def build_metadata(configs: list[Config], settings: Settings) -> dict:
                 "protocol": c.protocol,
                 "country": c.country,
                 "country_name": c.country_name,
+                "flag": c.flag_emoji(),
                 "error_rate": _round2(c.error_rate),
                 "weighted_error_rate": _round2(c.weighted_error_rate(weights)),
                 "avg_latency_ms": _round2(c.avg_latency) if c.latencies else None,

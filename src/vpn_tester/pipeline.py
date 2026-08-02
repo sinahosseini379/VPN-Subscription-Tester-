@@ -14,7 +14,7 @@ import aiohttp
 from .config import Settings
 from .cores import Cores
 from .geoip import GeoCache
-from .models import Config
+from .models import Config, flag_from_country_code
 from .parsers import is_supported, parse_uri
 from .runtime import (
     STAGE_COUNTRY,
@@ -142,6 +142,8 @@ async def country_filter(configs: list[Config], cores: Cores, settings: Settings
         if cc and cc in allowed:
             cfg.country = cc
             cfg.country_name, cfg.flag = allowed[cc]
+            if not cfg.flag:
+                cfg.flag = flag_from_country_code(cc)
             kept.append(cfg)
         else:
             log.info("Dropping %s — exit country: %s", cfg.display_name(), cc)
@@ -254,6 +256,14 @@ def load_previous_configs(settings: Settings) -> list[Config]:
         parsed = parse_uri(uri)
         if parsed is None:
             continue
+        country = item.get("country") or ""
+        # Restore the flag so carried-forward configs keep it in their display
+        # name. Older metadata files predate the stored "flag" field, so fall
+        # back to the allow-list and finally to a code-derived emoji.
+        flag = item.get("flag") or ""
+        if not flag and country:
+            allowed = settings.allowed_countries.get(country)
+            flag = allowed[1] if allowed else flag_from_country_code(country)
         configs.append(
             Config(
                 uri=uri,
@@ -261,8 +271,9 @@ def load_previous_configs(settings: Settings) -> list[Config]:
                 protocol=parsed.protocol,
                 server=parsed.server,
                 port=parsed.port,
-                country=item.get("country") or "",
+                country=country,
                 country_name=item.get("country_name") or "",
+                flag=flag,
                 index=int(item.get("index") or 0),
             )
         )

@@ -1,21 +1,118 @@
-# Fiddel VPN — Free Config Subscription
+<div dir="rtl">
 
-A free, daily-updated VPN configuration subscription optimized for users in Iran and worldwide.
+# فیدل (Fiddel) — اشتراک رایگان کانفیگ VPN
 
-## Quick Links
+یک اشتراک VPN رایگان و به‌روزرسانی‌شونده که هر روز ساخته می‌شود؛ بهینه برای کاربران داخل ایران و سراسر جهان. هر کانفیگ پیش از انتشار با پروسه‌های واقعی Xray / sing-box / Hysteria2 به‌صورت زنده تست می‌شود و فقط بهترین‌ها برای هر کشور نگه داشته می‌شوند.
 
-| Protocol | Direct Link |
-|----------|-------------|
-| **Base64 (all apps)** | `https://raw.githubusercontent.com/sinahosseini379/VPN-Subscription-Tester-/main/felfelconfig.txt` |
-| **Sing-box / SFA** | `https://raw.githubusercontent.com/sinahosseini379/VPN-Subscription-Tester-/main/felfelconfig.txt` |
-| **Clash / Meta** | `https://raw.githubusercontent.com/sinahosseini379/VPN-Subscription-Tester-/main/felfelconfig.txt` |
-| **V2Ray / NekoBox / Shadowrocket** | `https://raw.githubusercontent.com/sinahosseini379/VPN-Subscription-Tester-/main/felfelconfig.txt` |
+نسخه: **۲.۴.۰**
 
-> **Tip**: All links point to the same file. Most modern VPN apps (SFA, NekoBox, Clash Meta, v2rayNG, Shadowrocket, Streisand, etc.) accept a single base64 subscription URL.
+## لینک‌های مستقیم اشتراک
+
+| نوع | لینک مستقیم (Raw) |
+|-----|-------------------|
+| **Base64 (همه اپلیکیشن‌ها)** | `https://raw.githubusercontent.com/sinahosseini379/VPN-Subscription-Tester-/main/felfelconfig.txt` |
+
+> **نکته:** همه اپلیکیشن‌های مدرن VPN (SFA، sing-box، NekoBox، Clash Meta، v2rayNG، Shadowrocket، Streisand، Hiddify و…) یک URL اشتراک Base64 را می‌پذیرند. کافیست همین یک لینک را وارد کنید.
+
+## نحوه افزودن به اپلیکیشن‌ها
+
+### اندروید (Android)
+| اپلیکیشن | روش افزودن |
+|----------|------------|
+| **SFA / Sing-box** | `Profiles` ← `Add` ← `Remote` ← لینک را بچسبانید |
+| **NekoBox** | `Profile` ← `Import from URL` ← لینک را بچسبانید |
+| **v2rayNG** | `+` ← `Import from clipboard` (پس از کپی لینک) |
+| **Kitsunebi** | `+` ← `Import from URI` ← لینک را بچسبانید |
+| **Hiddify** | `Config` ← `Add Subscription` ← لینک را بچسبانید |
+
+### iOS / macOS
+| اپلیکیشن | روش افزودن |
+|----------|------------|
+| **Shadowrocket** | `+` ← `Subscribe` ← لینک را بچسبانید |
+| **Streisand** | `Subscriptions` ← `Add` ← لینک را بچسبانید |
+| **FoXray** | `Configuration` ← `Add Subscription` ← لینک را بچسبانید |
+| **Quantumult X** | `Subscription` ← `Add` ← لینک را بچسبانید |
+
+### ویندوز / لینوکس (Windows / Linux)
+| اپلیکیشن | روش افزودن |
+|----------|------------|
+| **NekoRay** | `Server` ← `Add from URL` ← لینک را بچسبانید |
+| **v2rayN** | `Subscription` ← `Add` ← لینک را بچسبانید |
+| **Clash Verge / Verge Rev** | `Profiles` ← `New` ← `Remote` ← لینک را بچسبانید |
+| **کلاینت‌های گرافیکی (v2rayA و…)** | لینک اشتراک را در تنظیمات وارد کنید |
+
+## چه چیزی درون اشتراک است؟
+
+- **پروتکل‌ها:** VLESS، VMess، Trojan، Shadowsocks، Hysteria2
+- **ترنسپورت‌ها:** TCP، WebSocket، gRPC، HTTP/2، HTTPUpgrade، SplitHTTP
+- **امنیت:** TLS، Reality، none
+- **کشورهای خروجی (پیش‌فرض):** آلمان 🇩🇪، فنلاند 🇫🇮، هلند 🇳🇱، انگلستان 🇬🇧، آمریکا 🇺🇸، ترکیه 🇹🇷
+- **تست‌شده:** هر کانفیگ از طریق فیلتر TCP، تشخیص کشور خروجی و چند دور تست URL زنده عبور می‌کند.
+- **به‌روزرسانی روزانه:** طبق زمان‌بندی (پیش‌فرض ۰۴:۰۴ به وقت `Asia/Tehran`).
+
+## به‌روزرسانی خودکار
+
+اشتراک یک راهنمای به‌روزرسانی خودکار به کلاینت اعلام می‌کند (`SUBSCRIPTION_INTERVAL_HOURS`، پیش‌فرض ۲۴ ساعت). اپلیکیشن‌های سازگار هر ۲۴ ساعت خودشان اشتراک را دوباره می‌گیرند. اگر اپلیکیشن شما به‌روزرسانی خودکار ندارد، روزی یک‌بار همان لینک را دوباره وارد کنید.
+
+> هدرهای پروفایل (`profile-title`، `subscription-userinfo`، `profile-update-interval`) فقط از مسیر داشبورد `‎/subscription‎` ارائه می‌شوند؛ فایل خام گیت‌هاب این هدرها را ندارد اما همان محتوا را دارد.
+
+## راه‌اندازی شخصی (Self-Hosting) — شروع سریع
+
+```bash
+git clone https://github.com/sinahosseini379/VPN-Subscription-Tester-
+cd VPN-Subscription-Tester-
+pip install -e ".[dev]"
+cp config.env.example config.env
+# GITHUB_TOKEN و در صورت نیاز GITHUB_OWNER / GITHUB_REPO را در config.env تنظیم کنید
+vpn-tester
+```
+
+- به‌صورت پیش‌فرض یک حلقه زمان‌بندی‌شده به‌همراه داشبورد وب روی `http://0.0.0.0:30445` اجرا می‌شود.
+- برای یک اجرای تکی: `vpn-tester --once`
+- برای رد کردن مرحله‌ی ارسال به گیت‌هاب: `vpn-tester --no-push`
+- نیازمندی‌ها: **پایتون ۳.۹ به بالا**. هسته‌های Xray / sing-box / Hysteria به‌صورت خودکار دانلود و به‌روزرسانی می‌شوند.
+
+## داشبورد
+
+<!-- تصویر داشبورد: TODO یک اسکرین‌شات از داشبورد زنده روی پورت 30445 اینجا قرار دهید -->
+`![Fiddel dashboard](docs/dashboard.png)`
+
+داشبورد پیشرفت زنده، لاگ‌های جاری، کانفیگ‌های منتشرشده، مدیریت لیست اشتراک‌ها و ویرایش زمان‌بندی را نشان می‌دهد.
+
+## حریم خصوصی
+
+- **بدون لاگ ترافیک:** تستر فقط اتصال‌پذیری را می‌سنجد؛ هیچ ترافیک کاربری از سرورهای ما عبور نمی‌کند.
+- **بدون ردیابی:** نه آنالیتیکس، نه شناسه کاربر، نه تلِمتری.
+- **متن‌باز:** کل کد در گیت‌هاب موجود است.
+
+## سلب مسئولیت
+
+این پروژه صرفاً کانفیگ‌های **عمومیِ در دسترس** پروکسی را برای پژوهش و استفاده شخصی گردآوری و تست می‌کند. ما هیچ سرور پروکسی‌ای را میزبانی، کنترل یا تأیید نمی‌کنیم. استفاده بر عهده کاربر و مطابق قوانین محلی است.
+
+## حمایت
+
+اگر این پروژه برایتان مفید بود، لطفاً به مخزن گیت‌هاب ⭐ بدهید:
+[github.com/sinahosseini379/VPN-Subscription-Tester-](https://github.com/sinahosseini379/VPN-Subscription-Tester-)
+
+</div>
 
 ---
 
-## How to Use
+# Fiddel — Free VPN Config Subscription
+
+A free, daily-rebuilt VPN subscription optimized for users in Iran and worldwide. Every config is **live-tested** through real Xray / sing-box / Hysteria2 processes before it is published, and only the best configs per country are kept.
+
+Version: **2.4.0**
+
+## Quick Subscription Links
+
+| Type | Direct (raw) link |
+|------|-------------------|
+| **Base64 (all apps)** | `https://raw.githubusercontent.com/sinahosseini379/VPN-Subscription-Tester-/main/felfelconfig.txt` |
+
+> **Tip:** Every modern VPN app (SFA, sing-box, NekoBox, Clash Meta, v2rayNG, Shadowrocket, Streisand, Hiddify, …) accepts a single base64 subscription URL. Just paste this one link.
+
+## How to Add to Apps
 
 ### Android
 | App | How to Add |
@@ -39,134 +136,62 @@ A free, daily-updated VPN configuration subscription optimized for users in Iran
 |-----|------------|
 | **NekoRay** | `Server` → `Add from URL` → Paste URL |
 | **v2rayN** | `Subscription` → `Add` → Paste URL |
-| **Clash Verge / Clash Verge Rev** | `Profiles` → `New` → `Remote` → Paste URL |
+| **Clash Verge / Verge Rev** | `Profiles` → `New` → `Remote` → Paste URL |
 | **GUI clients (v2rayA, etc.)** | Import subscription URL in settings |
-
----
 
 ## What's Inside
 
-- **Protocols**: VLESS (TCP/WS/gRPC/XHTTP), VMess, Trojan, Shadowsocks, **Hysteria2**
-- **Transports**: TCP, WebSocket, gRPC, XHTTP, HTTP/2, HTTP/3 (QUIC)
-- **Security**: TLS, Reality, mTLS, none
-- **Obfuscation**: Salamander (Hysteria2), UTLS, HTTPUpgrade
-- **Countries**: Germany 🇩🇪, Netherlands 🇳🇱, USA 🇺🇸, Finland 🇫🇮, UK 🇬🇧, Turkey 🇹🇷
-- **Daily auto-update**: Every 24 hours at 04:04 Tehran time
-- **Tested**: Each config is live-tested through real Xray/Sing-box/Hysteria processes
-
----
+- **Protocols:** VLESS, VMess, Trojan, Shadowsocks, Hysteria2
+- **Transports:** TCP, WebSocket, gRPC, HTTP/2, HTTPUpgrade, SplitHTTP
+- **Security:** TLS, Reality, none
+- **Exit countries (default):** Germany 🇩🇪, Finland 🇫🇮, Netherlands 🇳🇱, United Kingdom 🇬🇧, United States 🇺🇸, Turkey 🇹🇷
+- **Tested:** every config passes a TCP filter, exit-country check, and several rounds of live URL tests.
+- **Daily updates:** on a schedule (default 04:04 `Asia/Tehran`).
 
 ## Auto-Update
 
-The subscription includes an **auto-update hint** (`update_interval_hours=24`). Compatible apps (SFA, NekoBox, Shadowrocket, Streisand, Hiddify, etc.) will automatically re-fetch the subscription every 24 hours.
+The subscription advertises an auto-update hint to clients (`SUBSCRIPTION_INTERVAL_HOURS`, default 24). Compatible apps re-fetch the subscription every 24 hours on their own. If your app does not auto-update, just re-import the same URL once a day.
 
-If your app doesn't auto-update, just re-import the same URL once a day.
+> Profile headers (`profile-title`, `subscription-userinfo`, `profile-update-interval`) are served from the dashboard's `/subscription` route. The raw GitHub file carries the same content but cannot carry those headers.
 
----
+## Self-Hosting Quick Start
 
-## Status & Stats
+```bash
+git clone https://github.com/sinahosseini379/VPN-Subscription-Tester-
+cd VPN-Subscription-Tester-
+pip install -e ".[dev]"
+cp config.env.example config.env
+# Set GITHUB_TOKEN (and GITHUB_OWNER / GITHUB_REPO if different) in config.env
+vpn-tester
+```
 
-- **Generated**: Daily at 04:04 Asia/Tehran
-- **Source**: 2 public subscription sources, ~1000+ raw configs
-- **Filtered**: TCP reachable → Correct exit country → Live URL tests (5 rounds × 4 targets)
-- **Output**: Top 2 configs per country (max 12 total)
-- **Metadata**: [felfelconfig.txt.meta.json](https://raw.githubusercontent.com/sinahosseini379/VPN-Subscription-Tester-/main/felfelconfig.txt.meta.json) (latency, error rate, country, protocol)
+- By default this runs a scheduled loop plus a web dashboard at `http://0.0.0.0:30445`.
+- Single run: `vpn-tester --once`
+- Skip the GitHub push step: `vpn-tester --no-push`
+- Requirements: **Python 3.9+**. Xray / sing-box / Hysteria cores are downloaded and updated automatically.
 
----
+## Dashboard
 
-## Troubleshooting
+<!-- Dashboard image: TODO drop a screenshot of the live dashboard on port 30445 here -->
+`![Fiddel dashboard](docs/dashboard.png)`
 
-| Issue | Solution |
-|-------|----------|
-| "Invalid subscription" | Make sure you copied the **raw** GitHub URL (not the HTML page) |
-| Configs don't connect | Try a different protocol (VLESS-Reality works best in Iran) |
-| Slow speeds | Pick configs with lower latency (shown in app) |
-| App crashes on import | Update your VPN app to latest version |
+The dashboard shows live progress, streaming logs, published configs, subscription-list management, and schedule editing.
 
----
+## Privacy
 
-## Privacy & Security
-
-- **No logs**: The tester only checks connectivity; no traffic passes through our servers
-- **Open source**: All code at [github.com/sinahosseini379/VPN-Subscription-Tester-](https://github.com/sinahosseini379/VPN-Subscription-Tester-)
-- **No tracking**: No analytics, no user IDs, no telemetry
-
----
-
-## Support the Project
-
-If this helps you, please ⭐ the [GitHub repo](https://github.com/sinahosseini379/VPN-Subscription-Tester-). It's free, open source, and community-driven.
-
----
+- **No traffic logs:** the tester only checks connectivity; no user traffic passes through our servers.
+- **No tracking:** no analytics, no user IDs, no telemetry.
+- **Open source:** all code is on GitHub.
 
 ## Disclaimer
 
-This project provides **publicly available** proxy configurations for research and personal use. We do not host, control, or endorse any proxy server. Use at your own risk and in accordance with local laws.
+This project only collects and tests **publicly available** proxy configurations for research and personal use. We do not host, control, or endorse any proxy server. Use at your own risk and in accordance with local laws.
 
----
+## Support / Star
 
-## Persian / فارسی
+If this helped you, please ⭐ the GitHub repository:
+[github.com/sinahosseini379/VPN-Subscription-Tester-](https://github.com/sinahosseini379/VPN-Subscription-Tester-)
 
-### لینک‌های مستقیم اشتراک
+## Documentation
 
-| پروتکل | لینک مستقیم |
-|--------|-------------|
-| **Base64 (همه اپلیکیشن‌ها)** | `https://raw.githubusercontent.com/sinahosseini379/VPN-Subscription-Tester-/main/felfelconfig.txt` |
-| **Sing-box / SFA** | `https://raw.githubusercontent.com/sinahosseini379/VPN-Subscription-Tester-/main/felfelconfig.txt` |
-| **Clash / Meta** | `https://raw.githubusercontent.com/sinahosseini379/VPN-Subscription-Tester-/main/felfelconfig.txt` |
-| **V2Ray / NekoBox / Shadowrocket** | `https://raw.githubusercontent.com/sinahosseini379/VPN-Subscription-Tester-/main/felfelconfig.txt` |
-
-> **نکته**: همه لینک‌ها به یک فایل اشاره دارند. اکثر اپلیکیشن‌های مدرن VPN (SFA، NekoBox، Clash Meta، v2rayNG، Shadowrocket، Streisand و...) یک URL اشتراک Base64 را می‌پذیرند.
-
-### نحوه استفاده
-
-| اپلیکیشن | روش اضافه کردن |
-|----------|----------------|
-| **SFA / Sing-box** | `Profiles` → `Add` → `Remote` → URL را چسبانید |
-| **NekoBox** | `Profile` → `Import from URL` → URL را چسبانید |
-| **v2rayNG** | `+` → `Import from clipboard` (بعد از کپی URL) |
-| **Kitsunebi** | `+` → `Import from URI` → URL را چسبانید |
-| **Hiddify** | `Config` → `Add Subscription` → URL را چسبانید |
-| **Shadowrocket (iOS)** | `+` → `Subscribe` → URL را چسبانید |
-| **Streisand (iOS)** | `Subscriptions` → `Add` → URL را چسبانید |
-| **v2rayN (Windows)** | `Subscription` → `Add` → URL را چسبانید |
-| **Clash Verge Rev** | `Profiles` → `New` → `Remote` → URL را چسبانید |
-
-### چه چیزهایی در اشتراک هست؟
-
-- **پروتکل‌ها**: VLESS (TCP/WS/gRPC/XHTTP)، VMess، Trojan، Shadowsocks، **Hysteria2**
-- **ترنسبورت‌ها**: TCP، WebSocket، gRPC، XHTTP، HTTP/2، HTTP/3 (QUIC)
-- **امنیت**: TLS، Reality، mTLS، none
-- **ماسکینگ**: Salamander (Hysteria2)، UTLS، HTTPUpgrade
-- **کشورها**: آلمان 🇩🇪، هلند 🇳🇱، آمریکا 🇺🇸، فنلاند 🇫🇮، انگلستان 🇬🇧، ترکیه 🇹🇷
-- **بروزرسانی روزانه خودکار**: هر ۲۴ ساعت یک بار ساعت ۰۴:۰۴ وقت تهران
-- **تست شده**: هر کانفیگ از طریق پروسه‌های واقعی Xray / Sing-box / Hysteria تست زنده شده
-
-### بروزرسانی خودکار
-
-اشتراک شامل یک **راهنمای بروزرسانی خودکار** است (`update_interval_hours=24`). اپلیکیشن‌های سازگار (SFA، NekoBox، Shadowrocket، Streisand، Hiddify و...) به‌طور خودکار هر ۲۴ ساعت یک‌بار اشتراک را مجدداً دریافت می‌کنند.
-
-اگر اپلیکیشن‌تان بروزرسانی خودکار ندارد، کافیست یک‌بار در روز همان URL را مجدداً ایمپورت کنید.
-
-### عیب‌یابی
-
-| مشکل | راه‌حل |
-|-------|--------|
-| «اشتراک نامعتبر» | مطمئن شوید **URL مستقیم (Raw)** گیت‌هاب را کپی کرده‌اید (نه صفحه HTML) |
-| کانفیگ‌ها وصل نمی‌شوند | پروتکل دیگری امتحان کنید (VLESS-Reality در ایران بهترین نتیجه را می‌دهد) |
-| سرعت پایین | کانفیگ‌های با تاخیر (latency) کمتر را انتخاب کنید |
-| اپلیکیشن هنگام ایمپورت کرش می‌کند | اپلیکیشن VPN را به آخرین نسخه بروزرسانی کنید |
-
-### حریم خصوصی و امنیت
-
-- **بدون لاگ**: تستر فقط اتصال را چک می‌کند؛ هیچ ترافیکی از سرورهای ما نمی‌گذرد
-- **متن‌باز**: کل کد در [گیت‌هاب](https://github.com/sinahosseini379/VPN-Subscription-Tester-) موجود است
-- **بدون ردیابی**: هیچ آنالیتیکس، شناسه کاربری، یا تلِمتری وجود ندارد
-
-### حمایت از پروژه
-
-اگر این اشتراک برایتان مفید بود، لطفاً ریپوی [گیت‌هاب](https://github.com/sinahosseini379/VPN-Subscription-Tester-) را ⭐ کنید. این پروژه رایگان، متن‌باز و جامعه‌محور است.
-
-### سلب مسئولیت
-
-این پروژه تنها **کانفیگ‌های عمومی** پروکسی را برای تحقیق و استفاده شخصی جمع‌آوری می‌کند. ما هیچ سرور پروکسی را میزبانی، کنترل یا تایید نمی‌کنیم. استفاده به عهده کاربر و طبق قوانین محلی است.
+Full technical documentation lives in the [wiki](wiki/Home.md): Architecture, Configuration, Core Management, Pipeline, Incremental Runs, Dashboard API, GitHub Push, Deployment, and Testing.

@@ -2,18 +2,15 @@ from __future__ import annotations
 
 import base64
 import json
-import os
-import re
 import shutil
 import subprocess
-import tempfile
 
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
 
 from vpn_tester.config import Settings
 from vpn_tester.runtime import RunCoordinator
-from vpn_tester.web import HTML, _load_configs, _update_env, create_app
+from vpn_tester.web import STATIC_DIR, _load_configs, _update_env, create_app
 
 
 async def _noop_run(settings, *, do_push: bool = True) -> bool:
@@ -159,20 +156,37 @@ async def test_subscription_endpoint_404_before_publish(tmp_path):
         assert r.status == 404
 
 
-def test_index_js_is_valid_javascript():
-    """The served <script> block must parse, otherwise every dashboard button dies."""
+def test_static_dashboard_files_exist():
+    """The dashboard is served from static files bundled with the package."""
+    for name in ("index.html", "styles.css", "app.js"):
+        assert (STATIC_DIR / name).is_file(), f"missing static/{name}"
+
+
+def test_dashboard_js_is_valid_javascript():
+    """static/app.js must parse, otherwise every dashboard button dies."""
     node = shutil.which("node")
     if not node:
         pytest.skip("node not installed")
 
-    match = re.search(r"<script>(.*?)</script>", HTML, re.S)
-    assert match, "no <script> block found in dashboard HTML"
+    result = subprocess.run(
+        [node, "--check", str(STATIC_DIR / "app.js")],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode == 0, result.stderr
 
-    fd, path = tempfile.mkstemp(suffix=".js")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(match.group(1))
-        result = subprocess.run([node, "--check", path], capture_output=True, text=True, timeout=30)
-        assert result.returncode == 0, result.stderr
-    finally:
-        os.unlink(path)
+
+@pytest.mark.asyncio
+async def test_index_serves_html(tmp_path):
+    settings = _make_settings(tmp_path)
+    coordinator = RunCoordinator(settings, run_once_fn=_noop_run)
+    app = create_app(settings, coordinator, env_file=str(tmp_path / "config.env"))
+    async with TestClient(TestServer(app)) as client:
+        r = await client.get("/")
+        assert r.status == 200
+        assert "text/html" in r.headers["content-type"]
+        body = await r.text()
+        assert "/static/app.js" in body
+        r_js = await client.get("/static/app.js")
+        assert r_js.status == 200
