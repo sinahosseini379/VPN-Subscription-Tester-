@@ -103,15 +103,21 @@ async def _current_sha(
 
 
 async def push_to_github(
-    settings: Settings, attempt: int = 3, session: aiohttp.ClientSession | None = None
+    settings: Settings,
+    attempt: int = 3,
+    session: aiohttp.ClientSession | None = None,
+    files: list[str] | None = None,
 ) -> bool:
     """Upload every configured output file; returns True if all succeeded.
 
-    `session` is injectable for tests; when omitted an internal one is created.
+    `files` overrides `settings.github_files` for this call (used to append the
+    per-country outputs a run produced). `session` is injectable for tests;
+    when omitted an internal one is created.
     """
     if not (settings.github_token and settings.github_owner and settings.github_repo):
         raise ValueError("GitHub push requires GITHUB_TOKEN, GITHUB_OWNER and GITHUB_REPO.")
 
+    push_files = files if files is not None else settings.github_files
     own_session = session is None
     for _ in range(attempt):
         try:
@@ -119,7 +125,7 @@ async def push_to_github(
                 timeout = aiohttp.ClientTimeout(total=30)
                 session = aiohttp.ClientSession(timeout=timeout)
             try:
-                for rel in settings.github_files:
+                for rel in push_files:
                     path = Path(rel)
                     if not path.exists():
                         log.warning("File not found, skipping: %s", rel)

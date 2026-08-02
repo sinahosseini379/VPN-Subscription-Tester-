@@ -95,6 +95,9 @@ class Settings:
     subscriptions_file: str = "subscriptions.txt"
     output_file: str = "best_configs.txt"
     metadata_file: str = "best_configs.txt.meta.json"
+    # Also write one base64 file per country (e.g. best_configs-DE.txt) so users
+    # can subscribe to a single country. Derived from output_file's stem.
+    per_country_output: bool = True
     log_file: str = "vpn_tester.log"
     log_level: str = "INFO"
     log_rotate_mb: int = 20
@@ -227,6 +230,7 @@ class Settings:
             allowed_countries=allowed or DEFAULT_ALLOWED_COUNTRIES,
             subscriptions_file=_s("SUBSCRIPTIONS_FILE", cls.subscriptions_file),
             output_file=_s("OUTPUT_FILE", cls.output_file),
+            per_country_output=_b("PER_COUNTRY_OUTPUT", cls.per_country_output),
             metadata_file=_s("METADATA_FILE", cls.metadata_file),
             log_file=_s("LOG_FILE", cls.log_file),
             log_level=_s("LOG_LEVEL", cls.log_level).upper(),

@@ -95,8 +95,12 @@ async def run_once(settings, *, do_push: bool) -> bool:
         meta = write_subscription(top, settings)
 
         if do_push:
+            # Publish the per-country files this run produced alongside the
+            # configured outputs, without mutating settings across runs.
+            extra = [f for f in meta.get("written_files", []) if f not in settings.github_files]
+            push_files = settings.github_files + extra
             try:
-                ok = await push_to_github(settings)
+                ok = await push_to_github(settings, files=push_files)
                 if not ok:
                     log.error("GitHub push failed after retries.")
                     reporter.finish(False, meta)
