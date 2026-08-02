@@ -1,8 +1,8 @@
 {
   "version": "2.4.0",
-  "generated_at": "2026-08-02T00:42:43+00:00",
+  "generated_at": "2026-08-02T01:12:37+00:00",
   "count": 12,
-  "avg_latency_ms": 604.9,
+  "avg_latency_ms": 591.05,
   "avg_error_rate": 0.0,
   "by_country": {
     "DE": 2,
@@ -44,9 +44,9 @@
       "flag": "🇩🇪",
       "error_rate": 0.0,
       "weighted_error_rate": 0.0,
-      "avg_latency_ms": 889.21,
-      "p50_ms": 812.14,
-      "p95_ms": 1320.93,
+      "avg_latency_ms": 668.47,
+      "p50_ms": 576.5,
+      "p95_ms": 1117.44,
       "samples": 4,
       "per_target": {
         "Google": {
@@ -76,9 +76,9 @@
       "flag": "🇩🇪",
       "error_rate": 0.0,
       "weighted_error_rate": 0.0,
-      "avg_latency_ms": 682.61,
-      "p50_ms": 634.19,
-      "p95_ms": 901.03,
+      "avg_latency_ms": 692.78,
+      "p50_ms": 666.04,
+      "p95_ms": 903.93,
       "samples": 4,
       "per_target": {
         "Google": {
@@ -108,9 +108,9 @@
       "flag": "🇫🇮",
       "error_rate": 0.0,
       "weighted_error_rate": 0.0,
-      "avg_latency_ms": 672.36,
-      "p50_ms": 623.03,
-      "p95_ms": 878.44,
+      "avg_latency_ms": 717.27,
+      "p50_ms": 716.2,
+      "p95_ms": 879.75,
       "samples": 4,
       "per_target": {
         "Google": {
@@ -140,9 +140,9 @@
       "flag": "🇫🇮",
       "error_rate": 0.0,
       "weighted_error_rate": 0.0,
-      "avg_latency_ms": 868.4,
-      "p50_ms": 766.19,
-      "p95_ms": 1279.16,
+      "avg_latency_ms": 829.58,
+      "p50_ms": 701.31,
+      "p95_ms": 1308.73,
       "samples": 4,
       "per_target": {
         "Google": {
@@ -172,9 +172,9 @@
       "flag": "🇳🇱",
       "error_rate": 0.0,
       "weighted_error_rate": 0.0,
-      "avg_latency_ms": 332.02,
-      "p50_ms": 357.54,
-      "p95_ms": 444.08,
+      "avg_latency_ms": 317.07,
+      "p50_ms": 331.54,
+      "p95_ms": 447.95,
       "samples": 4,
       "per_target": {
         "Google": {
@@ -204,9 +204,9 @@
       "flag": "🇳🇱",
       "error_rate": 0.0,
       "weighted_error_rate": 0.0,
-      "avg_latency_ms": 528.46,
-      "p50_ms": 469.89,
-      "p95_ms": 759.37,
+      "avg_latency_ms": 507.1,
+      "p50_ms": 470.22,
+      "p95_ms": 673.66,
       "samples": 4,
       "per_target": {
         "Google": {
@@ -236,9 +236,9 @@
       "flag": "🇬🇧",
       "error_rate": 0.0,
       "weighted_error_rate": 0.0,
-      "avg_latency_ms": 520.11,
-      "p50_ms": 460.13,
-      "p95_ms": 773.88,
+      "avg_latency_ms": 515.31,
+      "p50_ms": 480.87,
+      "p95_ms": 716.59,
       "samples": 4,
       "per_target": {
         "Google": {
@@ -268,9 +268,9 @@
       "flag": "🇺🇸",
       "error_rate": 0.0,
       "weighted_error_rate": 0.0,
-      "avg_latency_ms": 407.59,
-      "p50_ms": 379.98,
-      "p95_ms": 575.52,
+      "avg_latency_ms": 476.82,
+      "p50_ms": 424.41,
+      "p95_ms": 716.2,
       "samples": 4,
       "per_target": {
         "Google": {
@@ -300,9 +300,9 @@
       "flag": "🇺🇸",
       "error_rate": 0.0,
       "weighted_error_rate": 0.0,
-      "avg_latency_ms": 863.71,
-      "p50_ms": 834.69,
-      "p95_ms": 1054.59,
+      "avg_latency_ms": 877.31,
+      "p50_ms": 854.66,
+      "p95_ms": 1079.33,
       "samples": 4,
       "per_target": {
         "Google": {
@@ -332,9 +332,9 @@
       "flag": "🇹🇷",
       "error_rate": 0.0,
       "weighted_error_rate": 0.0,
-      "avg_latency_ms": 372.66,
-      "p50_ms": 328.83,
-      "p95_ms": 563.76,
+      "avg_latency_ms": 479.17,
+      "p50_ms": 481.29,
+      "p95_ms": 660.78,
       "samples": 4,
       "per_target": {
         "Google": {
@@ -364,9 +364,9 @@
       "flag": "🇹🇷",
       "error_rate": 0.0,
       "weighted_error_rate": 0.0,
-      "avg_latency_ms": 677.6,
-      "p50_ms": 695.04,
-      "p95_ms": 953.25,
+      "avg_latency_ms": 607.46,
+      "p50_ms": 586.12,
+      "p95_ms": 899.23,
       "samples": 4,
       "per_target": {
         "Google": {
@@ -396,9 +396,9 @@
       "flag": "🇬🇧",
       "error_rate": 0.0,
       "weighted_error_rate": 0.0,
-      "avg_latency_ms": 444.02,
-      "p50_ms": 433.36,
-      "p95_ms": 693.71,
+      "avg_latency_ms": 404.24,
+      "p50_ms": 417.33,
+      "p95_ms": 598.25,
       "samples": 4,
       "per_target": {
         "Google": {
