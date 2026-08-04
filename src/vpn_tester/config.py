@@ -66,6 +66,7 @@ class Settings:
 
     # -- Pipeline behaviour -------------------------------------------------
     configs_per_country: int = 2
+    per_country_output_count: int = 5
     url_test_rounds: int = 5
     tcp_ping_tries: int = 5
     tcp_ping_min_success: int = 4
@@ -117,6 +118,18 @@ class Settings:
     # From the second run onward, keep previous configs that still work and only
     # replace the dead ones (instead of publishing a fresh list every time).
     incremental: bool = True
+
+    # -- Stealth / ISP-resilience ----------------------------------------------
+    # When the tester runs behind one ISP, configs that happen to pass may still
+    # be blocked on other ISPs (different DPI engines, SNI filtering, etc.).
+    # Stealth mode scores each config by how hard it is to detect/block and
+    # prefers high-stealth configs in the final selection.
+    #
+    # "off"      — no stealth filtering at all (legacy behaviour)
+    # "prefer"   — stealth score is a tiebreaker in ranking (default)
+    # "strict"   — drop any config below STEALTH_MIN_SCORE before URL tests
+    stealth_mode: str = "prefer"
+    stealth_min_score: float = 0.4  # only used when stealth_mode == "strict"
 
     # -- Subscription profile (name + auto-update interval for clients) ------
     subscription_name: str = "Fiddel"
@@ -209,6 +222,7 @@ class Settings:
 
         return cls(
             configs_per_country=_i("CONFIGS_PER_COUNTRY", cls.configs_per_country),
+            per_country_output_count=_i("PER_COUNTRY_OUTPUT_COUNT", cls.per_country_output_count),
             url_test_rounds=_i("URL_TEST_ROUNDS", cls.url_test_rounds),
             tcp_ping_tries=_i("TCP_PING_TRIES", cls.tcp_ping_tries),
             tcp_ping_min_success=_i("TCP_PING_MIN_SUCCESS", cls.tcp_ping_min_success),
@@ -226,6 +240,8 @@ class Settings:
             download_timeout=_f("DOWNLOAD_TIMEOUT", cls.download_timeout),
             max_subscription_urls=_i("MAX_SUBSCRIPTION_URLS", cls.max_subscription_urls),
             incremental=_b("INCREMENTAL", cls.incremental),
+            stealth_mode=_s("STEALTH_MODE", cls.stealth_mode).lower(),
+            stealth_min_score=_f("STEALTH_MIN_SCORE", cls.stealth_min_score),
             test_urls=test_urls or DEFAULT_TEST_URLS,
             allowed_countries=allowed or DEFAULT_ALLOWED_COUNTRIES,
             subscriptions_file=_s("SUBSCRIPTIONS_FILE", cls.subscriptions_file),

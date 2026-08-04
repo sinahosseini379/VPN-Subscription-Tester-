@@ -37,12 +37,15 @@ def write_subscription(configs: list[Config], settings: Settings) -> dict:
     metadata, and any per-country files) is stored on ``meta["written_files"]``
     so the caller can hand them to the GitHub push step.
     """
+    # Main subscription: limit to configs_per_country per country
+    main_configs = _slice_per_country(configs, settings.configs_per_country, settings)
+    
     out_path = Path(settings.output_file)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(_encode_configs(configs), encoding="utf-8")
-    log.info("Subscription written -> %s (%d configs)", out_path, len(configs))
+    out_path.write_text(_encode_configs(main_configs), encoding="utf-8")
+    log.info("Subscription written -> %s (%d configs)", out_path, len(main_configs))
 
-    meta = build_metadata(configs, settings)
+    meta = build_metadata(main_configs, settings)
     meta_path = Path(settings.metadata_file)
     meta_path.parent.mkdir(parents=True, exist_ok=True)
     meta_path.write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -55,11 +58,27 @@ def write_subscription(configs: list[Config], settings: Settings) -> dict:
     return meta
 
 
+def _slice_per_country(configs: list[Config], limit: int, settings: Settings) -> list[Config]:
+    """Slice configs to at most `limit` per country, preserving allow-list order."""
+    by_country: dict[str, list[Config]] = {}
+    for c in configs:
+        by_country.setdefault(c.country or "XX", []).append(c)
+
+    ordered = [cc for cc in settings.allowed_countries if cc in by_country]
+    ordered += sorted(cc for cc in by_country if cc not in settings.allowed_countries)
+
+    sliced: list[Config] = []
+    for cc in ordered:
+        sliced.extend(by_country[cc][:limit])
+    return sliced
+
+
 def write_per_country(configs: list[Config], settings: Settings) -> list[str]:
     """Write one base64 file per country, preserving allow-list order.
 
-    A country's file holds exactly that country's configs (already the best N,
-    since selection ran upstream). Returns the paths written.
+    Uses `per_country_output_count` (default 5) configs per country, which may
+    be more than the main subscription's `configs_per_country` (default 2).
+    Returns the paths written.
     """
     by_country: dict[str, list[Config]] = {}
     for c in configs:
@@ -69,12 +88,14 @@ def write_per_country(configs: list[Config], settings: Settings) -> list[str]:
     ordered = [cc for cc in settings.allowed_countries if cc in by_country]
     ordered += sorted(cc for cc in by_country if cc not in settings.allowed_countries)
 
+    limit = settings.per_country_output_count
     written: list[str] = []
     for cc in ordered:
+        country_configs = by_country[cc][:limit]
         path = country_output_path(settings.output_file, cc)
-        path.write_text(_encode_configs(by_country[cc]), encoding="utf-8")
+        path.write_text(_encode_configs(country_configs), encoding="utf-8")
         written.append(str(path))
-        log.info("Country subscription written -> %s (%d configs)", path, len(by_country[cc]))
+        log.info("Country subscription written -> %s (%d configs)", path, len(country_configs))
     return written
 
 
@@ -105,6 +126,9 @@ def build_metadata(configs: list[Config], settings: Settings) -> dict:
                 "name": c.display_name(),
                 "index": c.index,
                 "protocol": c.protocol,
+                "transport": c.transport,
+                "security": c.security,
+                "stealth_score": round(c.stealth_score, 3),
                 "country": c.country,
                 "country_name": c.country_name,
                 "flag": c.flag_emoji(),

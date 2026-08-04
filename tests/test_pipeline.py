@@ -30,7 +30,7 @@ def _cfg(
 
 
 def test_select_top_takes_n_per_country_in_order():
-    s = Settings(configs_per_country=2)
+    s = Settings(configs_per_country=2, per_country_output_count=2)
     configs = [
         _cfg("de3", "DE", [300]),
         _cfg("de1", "DE", [100]),

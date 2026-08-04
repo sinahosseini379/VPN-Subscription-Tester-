@@ -636,3 +636,154 @@ def build_hysteria_client_config(
     import yaml
 
     return yaml.safe_dump(cfg, sort_keys=False)
+
+
+# -- stealth / ISP-resilience scoring ------------------------------------
+#
+# Iranian ISPs use different DPI engines with varying capabilities.  Configs
+# that look like normal HTTPS browsing survive across all operators; configs
+# using unencrypted, unusual, or easily fingerprinted protocols get blocked
+# on some ISPs even though they work fine on others.
+#
+# The score is a weighted sum of independent signals, each normalised to
+# [0, 1].  A combined score of 1.0 means "very hard to detect/block"; 0.0
+# means "trivially blocked by basic filtering".
+#
+# Weights are tuned based on real-world observations of Iranian ISP blocking
+# behaviour as of 2024-2025 (MCI, Irancell, Rightel, Shatel, Samantel, …).
+
+# (signal_name, weight)
+_STEALTH_WEIGHTS = {
+    "security":    0.35,  # TLS/Reality vs none — biggest single factor
+    "transport":   0.25,  # ws/httpupgrade vs grpc/tcp-raw
+    "fingerprint": 0.15,  # uTLS fingerprint presence (anti-DPI)
+    "port":        0.10,  # 443 is safest; exotic ports draw attention
+    "protocol":    0.15,  # vless > trojan > vmess > ss (detection difficulty)
+}
+
+_SECURITY_SCORES: dict[str, float] = {
+    "reality": 1.0,   # looks like genuine TLS to a real site — undetectable
+    "tls":     0.7,   # standard TLS — good but can be fingerprinted
+    "none":    0.0,   # plaintext — instantly detectable
+}
+
+_TRANSPORT_SCORES: dict[str, float] = {
+    "ws":          0.9,   # WebSocket over TLS — looks like normal web traffic
+    "httpupgrade": 0.9,   # HTTP Upgrade — same profile as WebSocket
+    "splithttp":   0.85,  # newer, less fingerprinted
+    "h2":          0.7,   # HTTP/2 — good but less common for browsing
+    "grpc":        0.4,   # gRPC — unusual pattern, some ISPs block it
+    "tcp":         0.3,   # raw TCP — easy to fingerprint unless camouflaged
+}
+
+_PROTOCOL_SCORES: dict[str, float] = {
+    "vless":       1.0,   # minimal overhead, hard to fingerprint
+    "trojan":      0.8,   # looks like TLS to a web server
+    "hysteria2":   0.7,   # QUIC-based — works on some ISPs, blocked on others
+    "vmess":       0.5,   # detectable header pattern (even with TLS)
+    "shadowsocks": 0.3,   # well-known fingerprint, often blocked
+}
+
+# Good uTLS fingerprints that make TLS look like real browser traffic.
+_GOOD_FINGERPRINTS = frozenset({
+    "chrome", "firefox", "safari", "edge", "ios", "android",
+    "randomized", "random", "hellorandomizedalpn",
+    "hellorandomizednoalpn", "hellofirefox_auto",
+    "hellochrome_auto",
+})
+
+
+def _port_score(port: int) -> float:
+    """Score a port by how likely it is to pass ISP filtering."""
+    if port == 443:
+        return 1.0
+    if port == 8443:
+        return 0.9
+    if port in (2053, 2083, 2087, 2096):  # Cloudflare HTTPS ports
+        return 0.85
+    if port == 80:
+        return 0.5   # HTTP — no encryption expected, stands out
+    if port in (8080, 8880, 2052, 2082, 2086, 2095):  # Cloudflare HTTP ports
+        return 0.4
+    # Anything else: high ports are less suspicious than low ones
+    if port > 1024:
+        return 0.3
+    return 0.1
+
+
+def _fingerprint_score(fp: str) -> float:
+    """Score a TLS fingerprint string."""
+    if not fp:
+        return 0.0  # no fingerprint = no uTLS = easily fingerprinted
+    return 1.0 if fp.lower() in _GOOD_FINGERPRINTS else 0.5
+
+
+def extract_stealth_info(parsed: ParsedConfig) -> dict:
+    """Extract stealth-relevant metadata from a parsed config.
+
+    Returns a dict with keys: transport, security, fingerprint, stealth_score.
+    """
+    outbound = parsed.outbound
+    protocol = parsed.protocol
+    stream = outbound.get("streamSettings", {})
+
+    transport = stream.get("network", "tcp")
+    security = stream.get("security", "none")
+    port = parsed.port
+
+    # Extract fingerprint from TLS or Reality settings
+    fingerprint = ""
+    if security == "tls":
+        fingerprint = (stream.get("tlsSettings") or {}).get("fingerprint", "")
+    elif security == "reality":
+        fingerprint = (stream.get("realitySettings") or {}).get("fingerprint", "")
+
+    # Hysteria2 is a special case — it's always TLS + QUIC, no stream settings
+    if protocol == "hysteria2":
+        transport = "quic"
+        security = "tls"
+        servers = outbound.get("settings", {}).get("servers", [])
+        if servers:
+            fingerprint = (servers[0].get("tlsSettings") or {}).get("fingerprint", "")
+
+    # Special case: TCP with HTTP camouflage header
+    if transport == "tcp":
+        tcp_settings = stream.get("tcpSettings", {})
+        header = tcp_settings.get("header", {})
+        if header.get("type") == "http":
+            transport = "tcp-http"  # camouflaged TCP — slightly better
+
+    # Calculate the composite score
+    sec_score = _SECURITY_SCORES.get(security, 0.0)
+    trans_score = _TRANSPORT_SCORES.get(transport, 0.3)
+    if transport == "tcp-http":
+        trans_score = 0.45  # better than raw TCP but still detectable
+    if transport == "quic":
+        trans_score = 0.6   # QUIC is promising but blocked by some ISPs
+    fp_score = _fingerprint_score(fingerprint)
+    p_score = _port_score(port)
+    proto_score = _PROTOCOL_SCORES.get(protocol, 0.3)
+
+    # Bonus: Reality on port 443 with a good fingerprint is basically
+    # indistinguishable from real HTTPS — give it a bump.
+    bonus = 0.0
+    if security == "reality" and port == 443 and fingerprint:
+        bonus = 0.05
+
+    stealth_score = (
+        _STEALTH_WEIGHTS["security"] * sec_score
+        + _STEALTH_WEIGHTS["transport"] * trans_score
+        + _STEALTH_WEIGHTS["fingerprint"] * fp_score
+        + _STEALTH_WEIGHTS["port"] * p_score
+        + _STEALTH_WEIGHTS["protocol"] * proto_score
+        + bonus
+    )
+    # Clamp to [0, 1]
+    stealth_score = min(1.0, max(0.0, stealth_score))
+
+    return {
+        "transport": transport,
+        "security": security,
+        "fingerprint": fingerprint,
+        "stealth_score": round(stealth_score, 3),
+    }

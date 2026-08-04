@@ -36,6 +36,13 @@ class Config:
     index: int = 0  # global output number (1-based), set before publishing
     target_stats: dict[str, dict[str, int]] = field(default_factory=dict)
 
+    # -- Stealth / ISP-resilience fields ------------------------------------
+    # Populated by ``parsers.extract_stealth_info`` right after parsing.
+    transport: str = ""        # ws, grpc, h2, tcp, httpupgrade, splithttp
+    security: str = ""         # tls, reality, none
+    fingerprint: str = ""      # uTLS fingerprint (chrome, firefox, …)
+    stealth_score: float = 0.0  # 0.0 (easily blocked) – 1.0 (very stealthy)
+
     def record(self, label: str, ok: bool) -> None:
         """Record one probe result against a named test target."""
         stats = self.target_stats.setdefault(label, {"ok": 0, "fail": 0})

@@ -23,7 +23,6 @@
 │  models.py         - مدل داده‌ی Config و محاسبات آماری             │
 ├────────────────────────────────────────────────────────────────────┤
 │  cores.py          - دانلود/به‌روزرسانی خودکار هسته‌ها (فعال)      │
-│  core_manager.py   - پیاده‌سازی جایگزین مدیریت هسته                 │
 │  xray_runner.py    - راه‌اندازی پروسه‌ی هسته + تونل SOCKS5         │
 ├────────────────────────────────────────────────────────────────────┤
 │  output.py         - نوشتن اشتراک Base64 + متادیتای JSON            │
@@ -47,7 +46,6 @@
 | `geoip.py` | `GeoCache` و `fetch_country`؛ پرس‌وجوی چند ارائه‌دهنده به‌ترتیب، اولین موفقیت برنده و کش بر اساس IP خروجی. |
 | `models.py` | دیتاکلاس `Config`: ثبت نتایج هر هدف، `weighted_error_rate`، `avg_latency`، صدک‌ها و `display_name`. |
 | `cores.py` | ماژول **فعال** مدیریت هسته که `main.py` از آن `ensure_cores` را صدا می‌زند؛ دانلود، بررسی نسخه و جایگزینی اتمیک. |
-| `core_manager.py` | پیاده‌سازی جایگزین (کلاس `CoreManager`) با ساختار دایرکتوری و فایل نسخه؛ در جریان اصلی صدا زده نمی‌شود. |
 | `xray_runner.py` | `CoreRunner`: نوشتن کانفیگ موقت، راه‌اندازی پروسه، انتظار برای باز شدن پورت SOCKS، ساخت session با `ProxyConnector` و `test_url`. |
 | `output.py` | `write_subscription` و `build_metadata`؛ خروجی base64 و JSON متادیتا. |
 | `github_push.py` | `push_to_github`؛ GET SHA فعلی، سپس PUT محتوا از طریق Contents API با هدر Bearer. |
@@ -71,7 +69,7 @@
 
 The system is composed of several independent modules, each with one clear responsibility. The entry point is the `vpn-tester` command (`cli` in `main.py`).
 
-## Module Map (16 modules)
+## Module Map (15 modules)
 
 ```
 ┌────────────────────────────────────────────────────────────────────┐
@@ -90,7 +88,6 @@ The system is composed of several independent modules, each with one clear respo
 │  models.py         - Config data model + statistics                 │
 ├────────────────────────────────────────────────────────────────────┤
 │  cores.py          - Core auto-download / auto-update (active)      │
-│  core_manager.py   - Alternate core-management implementation       │
 │  xray_runner.py    - Core process launcher + SOCKS5 tunnel          │
 ├────────────────────────────────────────────────────────────────────┤
 │  output.py         - Base64 subscription + metadata JSON            │
@@ -114,7 +111,6 @@ The system is composed of several independent modules, each with one clear respo
 | `geoip.py` | `GeoCache` and `fetch_country`; queries providers in order, first success wins, caches per exit IP. |
 | `models.py` | `Config` dataclass: per-target result recording, `weighted_error_rate`, `avg_latency`, percentiles, and `display_name`. |
 | `cores.py` | The **active** core manager; `main.py` calls its `ensure_cores` — download, version check, atomic replace. |
-| `core_manager.py` | Alternate implementation (`CoreManager`) with a directory layout and version file; not called by the main flow. |
 | `xray_runner.py` | `CoreRunner`: writes a temp config, launches the process, waits for the SOCKS port, builds a `ProxyConnector` session, and `test_url`. |
 | `output.py` | `write_subscription` and `build_metadata`; base64 output and JSON metadata. |
 | `github_push.py` | `push_to_github`; GET current SHA, then PUT content via the Contents API with a Bearer header. |

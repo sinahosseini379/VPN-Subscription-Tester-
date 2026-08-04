@@ -17,6 +17,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 STAGE_DOWNLOAD = "downloading"
 STAGE_TCP = "tcp-ping"
+STAGE_STEALTH = "stealth-filter"
 STAGE_COUNTRY = "country-check"
 STAGE_URL_TESTS = "url-tests"
 STAGE_FINALIZE = "finalizing"

@@ -15,11 +15,12 @@ from .config import Settings
 from .cores import Cores
 from .geoip import GeoCache
 from .models import Config, flag_from_country_code
-from .parsers import is_supported, parse_uri
+from .parsers import extract_stealth_info, is_supported, parse_uri
 from .runtime import (
     STAGE_COUNTRY,
     STAGE_DOWNLOAD,
     STAGE_FINALIZE,
+    STAGE_STEALTH,
     STAGE_TCP,
     STAGE_URL_TESTS,
     reporter,
@@ -53,6 +54,7 @@ async def download_configs(sub_urls: list[str], settings: Settings) -> list[Conf
             if is_supported(uri):
                 log.warning("  Dropping unparseable config: %s", uri[:60])
             continue
+        stealth = extract_stealth_info(parsed)
         configs.append(
             Config(
                 uri=uri,
@@ -60,6 +62,10 @@ async def download_configs(sub_urls: list[str], settings: Settings) -> list[Conf
                 protocol=parsed.protocol,
                 server=parsed.server,
                 port=parsed.port,
+                transport=stealth["transport"],
+                security=stealth["security"],
+                fingerprint=stealth["fingerprint"],
+                stealth_score=stealth["stealth_score"],
             )
         )
     if len(configs) > settings.max_configs:
@@ -89,7 +95,7 @@ async def tcp_filter(configs: list[Config], settings: Settings) -> list[Config]:
                 return 0
             finally:
                 done += 1
-                reporter.set_progress(STAGE_TCP, done, total, 0.06, 0.22)
+                reporter.set_progress(STAGE_TCP, done, total, 0.06, 0.20)
 
     results = await asyncio.gather(*[_ping(c) for c in configs])
     kept = [c for c, ok in zip(configs, results) if ok >= settings.tcp_ping_min_success]
@@ -99,6 +105,49 @@ async def tcp_filter(configs: list[Config], settings: Settings) -> list[Config]:
         len(configs),
         settings.tcp_ping_min_success,
     )
+    return kept
+
+
+def stealth_filter(configs: list[Config], settings: Settings) -> list[Config]:
+    """Drop configs with a stealth score below the minimum threshold.
+
+    Only active when ``stealth_mode`` is ``"strict"``; in ``"prefer"`` mode the
+    score is used as a ranking tiebreaker in ``select_top`` instead.  In ``"off"``
+    mode this function is a no-op.
+
+    The filter logs a per-category breakdown so operators can see which ISP-risky
+    patterns were eliminated.
+    """
+    mode = settings.stealth_mode
+    if mode not in ("strict",):
+        return configs
+
+    reporter.set_stage(STAGE_STEALTH, "filtering low-stealth configs")
+    threshold = settings.stealth_min_score
+    kept: list[Config] = []
+    dropped_by_reason: dict[str, int] = {}
+
+    for c in configs:
+        if c.stealth_score >= threshold:
+            kept.append(c)
+        else:
+            # Build a human-readable reason
+            reason = f"{c.protocol}/{c.transport}/{c.security}"
+            dropped_by_reason[reason] = dropped_by_reason.get(reason, 0) + 1
+
+    if dropped_by_reason:
+        log.info(
+            "Stealth filter (threshold=%.2f): dropped %d / %d configs",
+            threshold,
+            len(configs) - len(kept),
+            len(configs),
+        )
+        for reason, count in sorted(dropped_by_reason.items(), key=lambda x: -x[1]):
+            log.info("  dropped %3d  %s", count, reason)
+    else:
+        log.info("Stealth filter: all %d configs above threshold %.2f", len(configs), threshold)
+
+    reporter.set_progress(STAGE_STEALTH, 1, 1, 0.20, 0.24)
     return kept
 
 
@@ -130,7 +179,7 @@ async def country_filter(configs: list[Config], cores: Cores, settings: Settings
                 result = None
             finally:
                 done += 1
-                reporter.set_progress(STAGE_COUNTRY, done, total, 0.22, 0.55)
+                reporter.set_progress(STAGE_COUNTRY, done, total, 0.24, 0.55)
             return result
 
     tasks = [_check(i, c) for i, c in enumerate(configs)]
@@ -196,9 +245,16 @@ async def url_test_all(
 def select_top(configs: list[Config], settings: Settings) -> list[Config]:
     """Drop configs with too many errors, then take the best N per country.
 
-    Keeps `configs_per_country` best configs for every allowed country, in the
-    order countries appear in `settings.allowed_countries`. Ranking uses the
-    target-weighted error rate, then average latency.
+    Keeps the best configs for every allowed country, in the
+    order countries appear in `settings.allowed_countries`. The number kept per
+    country is the maximum of `configs_per_country` (for main subscription) and
+    `per_country_output_count` (for per-country files). Ranking uses:
+
+    1. Target-weighted error rate (lower is better)
+    2. Stealth score (higher is better) — when ``stealth_mode`` is ``"prefer"``
+       or ``"strict"``, this separates configs with the same error rate,
+       ensuring cross-ISP resilience.
+    3. Average latency (lower is better)
     """
     weights = {label: w for label, _url, w in settings.test_urls}
     candidates = [c for c in configs if c.weighted_error_rate(weights) <= settings.max_error_rate]
@@ -210,11 +266,25 @@ def select_top(configs: list[Config], settings: Settings) -> list[Config]:
             settings.max_error_rate * 100,
         )
 
+    use_stealth = settings.stealth_mode in ("prefer", "strict")
+    # Keep enough for both main subscription and per-country files
+    per_country_limit = max(settings.configs_per_country, settings.per_country_output_count)
+
     result: list[Config] = []
     for cc in settings.allowed_countries:
         pool = [c for c in candidates if c.country == cc]
-        pool.sort(key=lambda c: (c.weighted_error_rate(weights), c.avg_latency))
-        result.extend(pool[: settings.configs_per_country])
+        if use_stealth:
+            # Sort by error_rate ASC, stealth_score DESC, latency ASC
+            pool.sort(
+                key=lambda c: (
+                    c.weighted_error_rate(weights),
+                    -c.stealth_score,
+                    c.avg_latency,
+                )
+            )
+        else:
+            pool.sort(key=lambda c: (c.weighted_error_rate(weights), c.avg_latency))
+        result.extend(pool[: per_country_limit])
     return result
 
 
@@ -264,6 +334,8 @@ def load_previous_configs(settings: Settings) -> list[Config]:
         if not flag and country:
             allowed = settings.allowed_countries.get(country)
             flag = allowed[1] if allowed else flag_from_country_code(country)
+        # Restore stealth info; recompute if not in older metadata.
+        stealth = extract_stealth_info(parsed)
         configs.append(
             Config(
                 uri=uri,
@@ -275,6 +347,9 @@ def load_previous_configs(settings: Settings) -> list[Config]:
                 country_name=item.get("country_name") or "",
                 flag=flag,
                 index=int(item.get("index") or 0),
+                transport=item.get("transport") or stealth["transport"],
+                security=item.get("security") or stealth["security"],
+                stealth_score=float(item.get("stealth_score") or stealth["stealth_score"]),
             )
         )
     log.info("Loaded %d config(s) from previous run", len(configs))
@@ -342,6 +417,12 @@ def merge_incremental(
 
 async def run_pipeline(sub_urls: list[str], cores: Cores, settings: Settings) -> list[Config]:
     log.info("Cores: xray=%s sing-box=%s hysteria=%s", cores.xray, cores.sing_box, cores.hysteria)
+    if settings.stealth_mode != "off":
+        log.info(
+            "Stealth mode: %s (min_score=%.2f)",
+            settings.stealth_mode,
+            settings.stealth_min_score,
+        )
 
     configs = await download_configs(sub_urls, settings)
     if not configs:
@@ -350,6 +431,14 @@ async def run_pipeline(sub_urls: list[str], cores: Cores, settings: Settings) ->
     configs = await tcp_filter(configs, settings)
     if not configs:
         return []
+
+    # Stealth filter runs before the expensive country/URL stages so we avoid
+    # wasting core processes on configs that would be blocked anyway.
+    if settings.stealth_mode == "strict":
+        configs = stealth_filter(configs, settings)
+        if not configs:
+            log.warning("Stealth filter eliminated all configs; try lowering STEALTH_MIN_SCORE.")
+            return []
 
     configs = await country_filter(configs, cores, settings)
     if not configs:
@@ -371,17 +460,20 @@ async def run_pipeline(sub_urls: list[str], cores: Cores, settings: Settings) ->
             top = merge_incremental(top, alive, settings)
 
     assign_indices(top)
-    log.info("=" * 55)
-    log.info("Top %d configs (by error-rate then latency):", len(top))
+    log.info("=" * 65)
+    log.info("Top %d configs (by error-rate, stealth, latency):", len(top))
     for c in top:
         log.info(
-            "  %s  drop=%.1f%%  avg=%7.1fms  p95=%7.1fms",
+            "  %s  drop=%.1f%%  stealth=%.2f  avg=%7.1fms  p95=%7.1fms  [%s/%s]",
             c.display_name(),
             c.error_rate * 100,
+            c.stealth_score,
             c.avg_latency,
             c.p95,
+            c.transport,
+            c.security,
         )
-    log.info("=" * 55)
+    log.info("=" * 65)
     reporter.set_stage(STAGE_FINALIZE, "selecting best configs")
     reporter.set_progress(STAGE_FINALIZE, 1, 1, 0.95, 1.0)
     return top

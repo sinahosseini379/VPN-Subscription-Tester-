@@ -224,7 +224,3 @@ class CoreRunner:
             return (time.perf_counter() - t0) * 1000.0
         except Exception:
             return None
-
-
-# Backwards-compatible alias for older importers.
-XrayRunner = CoreRunner

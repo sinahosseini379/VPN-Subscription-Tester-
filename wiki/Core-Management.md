@@ -2,7 +2,7 @@
 
 # مدیریت هسته‌ها
 
-پروژه به سه هسته‌ی پروکسی متکی است و همه را می‌تواند به‌صورت خودکار دانلود و به‌روز نگه دارد. ماژول **فعال**، `cores.py` است (تابع `ensure_cores` که در `main.py` صدا زده می‌شود). ماژول `core_manager.py` یک پیاده‌سازی جایگزین با ساختار دایرکتوری و فایل نسخه است که در جریان اصلی استفاده نمی‌شود.
+پروژه به سه هسته‌ی پروکسی متکی است و همه را می‌تواند به‌صورت خودکار دانلود و به‌روز نگه دارد. ماژول **فعال**، `cores.py` است (تابع `ensure_cores` که در `main.py` صدا زده می‌شود).
 
 ## هسته‌های پشتیبانی‌شده
 
@@ -65,7 +65,7 @@
 
 # Core Management
 
-The project relies on three proxy cores and can download and keep all of them up to date automatically. The **active** module is `cores.py` (its `ensure_cores` is what `main.py` calls). The `core_manager.py` module is an alternate implementation with a directory layout and version file; it is not used by the main flow.
+The project relies on three proxy cores and can download and keep all of them up to date automatically. The **active** module is `cores.py` (its `ensure_cores` is what `main.py` calls).
 
 ## Supported Cores
 
