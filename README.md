@@ -6,6 +6,12 @@
 
 نسخه: **۲.۴.۰**
 
+## ✨ قابلیت‌های جدید (v2.4.0)
+
+- **امتیازدهی Stealth برای عبور از همه ISP‌های ایران:** هر کانفیگ بر اساس ۵ سیگنال (Security، Transport، Protocol، Fingerprint، Port) امتیازدهی می‌شود. کانفیگ‌هایی که روی اپراتور خاص (مثلا سامانتل) کار می‌کنند اما روی سایر اپراتورها (همراه اول، ایرانسل، رایتل) بلاک می‌شوند، شناسایی و فیلتر می‌گردند.
+- **دو سطح خروجی:** اشتراک اصلی (`felfelconfig.txt`) با ۲ کانفیگ برتر هر کشور برای استفاده روزمره، و فایل‌های جداگانه‌ی هر کشور (`felfelconfig-DE.txt` و...) با ۵ کانفیگ برتر برای کاربران پیشرفته.
+- **حالت‌های Stealth:** `off` (غیرفعال)، `prefer` (پیش‌فرض، امتیاز به عنوان Tiebreaker)، `strict` (حذف کانفیگ‌های ضعیف قبل از تست‌های سنگین).
+
 ## لینک‌های مستقیم اشتراک
 
 | نوع | لینک مستقیم (Raw) |
@@ -72,6 +78,25 @@ vpn-tester
 - برای رد کردن مرحله‌ی ارسال به گیت‌هاب: `vpn-tester --no-push`
 - نیازمندی‌ها: **پایتون ۳.۹ به بالا**. هسته‌های Xray / sing-box / Hysteria به‌صورت خودکار دانلود و به‌روزرسانی می‌شوند.
 
+## تنظیمات پیشرفته (config.env)
+
+| متغیر | پیش‌فرض | توضیح |
+|--------|---------|-------|
+| `CONFIGS_PER_COUNTRY` | `2` | تعداد کانفیگ هر کشور در **اشتراک اصلی** |
+| `PER_COUNTRY_OUTPUT_COUNT` | `5` | تعداد کانفیگ هر کشور در **فایل‌های جداگانه‌ی کشور** |
+| `STEALTH_MODE` | `prefer` | `off` \| `prefer` \| `strict` — کنترل امتیازدهی Stealth |
+| `STEALTH_MIN_SCORE` | `0.4` | حداقل امتیاز (فقط در حالت `strict`) |
+
+**پیشنهاد برای سرورهای ایران (سازگاری همه اپراتورها):**
+```env
+STEALTH_MODE=strict
+STEALTH_MIN_SCORE=0.5
+CONFIGS_PER_COUNTRY=2
+PER_COUNTRY_OUTPUT_COUNT=5
+```
+
+این تنظیمات باعث می‌شود کانفیگ‌های با Security ضعیف (plaintext، TCP خام، Shadowsocks ساده) قبل از تست‌های وقت‌گیر حذف شوند و فقط کانفیگ‌های پرامتیاز (VLESS+Reality+WS، VLESS+TLS+WS، Trojan+TLS+WS) در خروجی باقی بمانند.
+
 ## داشبورد
 
 <!-- تصویر داشبورد: TODO یک اسکرین‌شات از داشبورد زنده روی پورت 30445 اینجا قرار دهید -->
@@ -103,6 +128,12 @@ vpn-tester
 A free, daily-rebuilt VPN subscription optimized for users in Iran and worldwide. Every config is **live-tested** through real Xray / sing-box / Hysteria2 processes before it is published, and only the best configs per country are kept.
 
 Version: **2.4.0**
+
+## ✨ New in v2.4.0
+
+- **Stealth scoring for cross-ISP resilience:** Each config is scored on 5 signals (Security, Transport, Protocol, uTLS Fingerprint, Port) tuned for Iranian ISP filtering. Configs that work on one ISP (e.g., Samantel) but get blocked on others (MCI, Irancell, Rightel) are detected and filtered out.
+- **Dual output tiers:** Main subscription (`felfelconfig.txt`) with 2 best configs/country for daily use, plus per-country files (`felfelconfig-DE.txt`, etc.) with 5 best configs/country for power users.
+- **Stealth modes:** `off` (disabled), `prefer` (default, score as tiebreaker), `strict` (drop low-score configs before expensive tests).
 
 ## Quick Subscription Links
 
@@ -169,6 +200,25 @@ vpn-tester
 - Single run: `vpn-tester --once`
 - Skip the GitHub push step: `vpn-tester --no-push`
 - Requirements: **Python 3.9+**. Xray / sing-box / Hysteria cores are downloaded and updated automatically.
+
+## Advanced Configuration (config.env)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CONFIGS_PER_COUNTRY` | `2` | Configs per country in **main subscription** |
+| `PER_COUNTRY_OUTPUT_COUNT` | `5` | Configs per country in **per-country files** |
+| `STEALTH_MODE` | `prefer` | `off` \| `prefer` \| `strict` — stealth scoring control |
+| `STEALTH_MIN_SCORE` | `0.4` | Minimum score (only in `strict` mode) |
+
+**Recommended for Iran servers (cross-ISP compatibility):**
+```env
+STEALTH_MODE=strict
+STEALTH_MIN_SCORE=0.5
+CONFIGS_PER_COUNTRY=2
+PER_COUNTRY_OUTPUT_COUNT=5
+```
+
+This drops configs with weak security (plaintext, raw TCP, basic Shadowsocks) before expensive tests, keeping only high-score configs (VLESS+Reality+WS, VLESS+TLS+WS, Trojan+TLS+WS).
 
 ## Dashboard
 
