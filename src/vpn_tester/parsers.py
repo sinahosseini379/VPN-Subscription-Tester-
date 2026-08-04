@@ -654,43 +654,53 @@ def build_hysteria_client_config(
 
 # (signal_name, weight)
 _STEALTH_WEIGHTS = {
-    "security":    0.35,  # TLS/Reality vs none — biggest single factor
-    "transport":   0.25,  # ws/httpupgrade vs grpc/tcp-raw
+    "security": 0.35,  # TLS/Reality vs none — biggest single factor
+    "transport": 0.25,  # ws/httpupgrade vs grpc/tcp-raw
     "fingerprint": 0.15,  # uTLS fingerprint presence (anti-DPI)
-    "port":        0.10,  # 443 is safest; exotic ports draw attention
-    "protocol":    0.15,  # vless > trojan > vmess > ss (detection difficulty)
+    "port": 0.10,  # 443 is safest; exotic ports draw attention
+    "protocol": 0.15,  # vless > trojan > vmess > ss (detection difficulty)
 }
 
 _SECURITY_SCORES: dict[str, float] = {
-    "reality": 1.0,   # looks like genuine TLS to a real site — undetectable
-    "tls":     0.7,   # standard TLS — good but can be fingerprinted
-    "none":    0.0,   # plaintext — instantly detectable
+    "reality": 1.0,  # looks like genuine TLS to a real site — undetectable
+    "tls": 0.7,  # standard TLS — good but can be fingerprinted
+    "none": 0.0,  # plaintext — instantly detectable
 }
 
 _TRANSPORT_SCORES: dict[str, float] = {
-    "ws":          0.9,   # WebSocket over TLS — looks like normal web traffic
-    "httpupgrade": 0.9,   # HTTP Upgrade — same profile as WebSocket
-    "splithttp":   0.85,  # newer, less fingerprinted
-    "h2":          0.7,   # HTTP/2 — good but less common for browsing
-    "grpc":        0.4,   # gRPC — unusual pattern, some ISPs block it
-    "tcp":         0.3,   # raw TCP — easy to fingerprint unless camouflaged
+    "ws": 0.9,  # WebSocket over TLS — looks like normal web traffic
+    "httpupgrade": 0.9,  # HTTP Upgrade — same profile as WebSocket
+    "splithttp": 0.85,  # newer, less fingerprinted
+    "h2": 0.7,  # HTTP/2 — good but less common for browsing
+    "grpc": 0.4,  # gRPC — unusual pattern, some ISPs block it
+    "tcp": 0.3,  # raw TCP — easy to fingerprint unless camouflaged
 }
 
 _PROTOCOL_SCORES: dict[str, float] = {
-    "vless":       1.0,   # minimal overhead, hard to fingerprint
-    "trojan":      0.8,   # looks like TLS to a web server
-    "hysteria2":   0.7,   # QUIC-based — works on some ISPs, blocked on others
-    "vmess":       0.5,   # detectable header pattern (even with TLS)
-    "shadowsocks": 0.3,   # well-known fingerprint, often blocked
+    "vless": 1.0,  # minimal overhead, hard to fingerprint
+    "trojan": 0.8,  # looks like TLS to a web server
+    "hysteria2": 0.7,  # QUIC-based — works on some ISPs, blocked on others
+    "vmess": 0.5,  # detectable header pattern (even with TLS)
+    "shadowsocks": 0.3,  # well-known fingerprint, often blocked
 }
 
 # Good uTLS fingerprints that make TLS look like real browser traffic.
-_GOOD_FINGERPRINTS = frozenset({
-    "chrome", "firefox", "safari", "edge", "ios", "android",
-    "randomized", "random", "hellorandomizedalpn",
-    "hellorandomizednoalpn", "hellofirefox_auto",
-    "hellochrome_auto",
-})
+_GOOD_FINGERPRINTS = frozenset(
+    {
+        "chrome",
+        "firefox",
+        "safari",
+        "edge",
+        "ios",
+        "android",
+        "randomized",
+        "random",
+        "hellorandomizedalpn",
+        "hellorandomizednoalpn",
+        "hellofirefox_auto",
+        "hellochrome_auto",
+    }
+)
 
 
 def _port_score(port: int) -> float:
@@ -702,7 +712,7 @@ def _port_score(port: int) -> float:
     if port in (2053, 2083, 2087, 2096):  # Cloudflare HTTPS ports
         return 0.85
     if port == 80:
-        return 0.5   # HTTP — no encryption expected, stands out
+        return 0.5  # HTTP — no encryption expected, stands out
     if port in (8080, 8880, 2052, 2082, 2086, 2095):  # Cloudflare HTTP ports
         return 0.4
     # Anything else: high ports are less suspicious than low ones
@@ -759,7 +769,7 @@ def extract_stealth_info(parsed: ParsedConfig) -> dict:
     if transport == "tcp-http":
         trans_score = 0.45  # better than raw TCP but still detectable
     if transport == "quic":
-        trans_score = 0.6   # QUIC is promising but blocked by some ISPs
+        trans_score = 0.6  # QUIC is promising but blocked by some ISPs
     fp_score = _fingerprint_score(fingerprint)
     p_score = _port_score(port)
     proto_score = _PROTOCOL_SCORES.get(protocol, 0.3)

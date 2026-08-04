@@ -38,9 +38,9 @@ class Config:
 
     # -- Stealth / ISP-resilience fields ------------------------------------
     # Populated by ``parsers.extract_stealth_info`` right after parsing.
-    transport: str = ""        # ws, grpc, h2, tcp, httpupgrade, splithttp
-    security: str = ""         # tls, reality, none
-    fingerprint: str = ""      # uTLS fingerprint (chrome, firefox, …)
+    transport: str = ""  # ws, grpc, h2, tcp, httpupgrade, splithttp
+    security: str = ""  # tls, reality, none
+    fingerprint: str = ""  # uTLS fingerprint (chrome, firefox, …)
     stealth_score: float = 0.0  # 0.0 (easily blocked) – 1.0 (very stealthy)
 
     def record(self, label: str, ok: bool) -> None:

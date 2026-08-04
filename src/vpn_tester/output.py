@@ -39,7 +39,7 @@ def write_subscription(configs: list[Config], settings: Settings) -> dict:
     """
     # Main subscription: limit to configs_per_country per country
     main_configs = _slice_per_country(configs, settings.configs_per_country, settings)
-    
+
     out_path = Path(settings.output_file)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(_encode_configs(main_configs), encoding="utf-8")

@@ -284,7 +284,7 @@ def select_top(configs: list[Config], settings: Settings) -> list[Config]:
             )
         else:
             pool.sort(key=lambda c: (c.weighted_error_rate(weights), c.avg_latency))
-        result.extend(pool[: per_country_limit])
+        result.extend(pool[:per_country_limit])
     return result
 
 
