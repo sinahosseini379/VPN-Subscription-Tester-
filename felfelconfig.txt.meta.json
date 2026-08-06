@@ -1,16 +1,13 @@
 {
   "version": "2.4.0",
-  "generated_at": "2026-08-05T00:48:23+00:00",
-  "count": 10,
-  "avg_latency_ms": 547.93,
+  "generated_at": "2026-08-06T00:48:51+00:00",
+  "count": 4,
+  "avg_latency_ms": 968.58,
   "avg_error_rate": 0.0,
   "by_country": {
-    "DE": 2,
-    "FI": 1,
-    "NL": 2,
-    "GB": 1,
-    "US": 2,
-    "TR": 2
+    "DE": 1,
+    "NL": 1,
+    "US": 2
   },
   "targets": [
     {
@@ -47,9 +44,9 @@
       "flag": "🇩🇪",
       "error_rate": 0.0,
       "weighted_error_rate": 0.0,
-      "avg_latency_ms": 562.37,
-      "p50_ms": 498.86,
-      "p95_ms": 801.0,
+      "avg_latency_ms": 566.32,
+      "p50_ms": 460.58,
+      "p95_ms": 912.26,
       "samples": 4,
       "per_target": {
         "Google": {
@@ -71,78 +68,8 @@
       }
     },
     {
-      "name": "🇩🇪 Germany | 02",
+      "name": "🇳🇱 Netherlands | 02",
       "index": 2,
-      "protocol": "vless",
-      "transport": "httpupgrade",
-      "security": "none",
-      "stealth_score": 0.415,
-      "country": "DE",
-      "country_name": "Germany",
-      "flag": "🇩🇪",
-      "error_rate": 0.0,
-      "weighted_error_rate": 0.0,
-      "avg_latency_ms": 627.13,
-      "p50_ms": 551.29,
-      "p95_ms": 932.74,
-      "samples": 4,
-      "per_target": {
-        "Google": {
-          "ok": 1,
-          "fail": 0
-        },
-        "YouTube": {
-          "ok": 1,
-          "fail": 0
-        },
-        "Cloudflare": {
-          "ok": 1,
-          "fail": 0
-        },
-        "X.com": {
-          "ok": 1,
-          "fail": 0
-        }
-      }
-    },
-    {
-      "name": "🇫🇮 Finland | 08",
-      "index": 8,
-      "protocol": "vless",
-      "transport": "tcp",
-      "security": "reality",
-      "stealth_score": 0.875,
-      "country": "FI",
-      "country_name": "Finland",
-      "flag": "🇫🇮",
-      "error_rate": 0.0,
-      "weighted_error_rate": 0.0,
-      "avg_latency_ms": 401.68,
-      "p50_ms": 172.62,
-      "p95_ms": 960.97,
-      "samples": 20,
-      "per_target": {
-        "Google": {
-          "ok": 5,
-          "fail": 0
-        },
-        "YouTube": {
-          "ok": 5,
-          "fail": 0
-        },
-        "Cloudflare": {
-          "ok": 5,
-          "fail": 0
-        },
-        "X.com": {
-          "ok": 5,
-          "fail": 0
-        }
-      }
-    },
-    {
-      "name": "🇳🇱 Netherlands | 03",
-      "index": 3,
       "protocol": "vless",
       "transport": "ws",
       "security": "none",
@@ -152,9 +79,9 @@
       "flag": "🇳🇱",
       "error_rate": 0.0,
       "weighted_error_rate": 0.0,
-      "avg_latency_ms": 627.09,
-      "p50_ms": 506.03,
-      "p95_ms": 979.33,
+      "avg_latency_ms": 1732.83,
+      "p50_ms": 729.55,
+      "p95_ms": 4408.37,
       "samples": 4,
       "per_target": {
         "Google": {
@@ -176,78 +103,8 @@
       }
     },
     {
-      "name": "🇳🇱 Netherlands | 04",
-      "index": 4,
-      "protocol": "vless",
-      "transport": "grpc",
-      "security": "reality",
-      "stealth_score": 0.9,
-      "country": "NL",
-      "country_name": "Netherlands",
-      "flag": "🇳🇱",
-      "error_rate": 0.0,
-      "weighted_error_rate": 0.0,
-      "avg_latency_ms": 375.4,
-      "p50_ms": 374.77,
-      "p95_ms": 588.84,
-      "samples": 4,
-      "per_target": {
-        "Google": {
-          "ok": 1,
-          "fail": 0
-        },
-        "YouTube": {
-          "ok": 1,
-          "fail": 0
-        },
-        "Cloudflare": {
-          "ok": 1,
-          "fail": 0
-        },
-        "X.com": {
-          "ok": 1,
-          "fail": 0
-        }
-      }
-    },
-    {
-      "name": "🇬🇧 United Kingdom | 09",
-      "index": 9,
-      "protocol": "vless",
-      "transport": "tcp",
-      "security": "reality",
-      "stealth_score": 0.875,
-      "country": "GB",
-      "country_name": "United Kingdom",
-      "flag": "🇬🇧",
-      "error_rate": 0.0,
-      "weighted_error_rate": 0.0,
-      "avg_latency_ms": 259.2,
-      "p50_ms": 134.12,
-      "p95_ms": 557.43,
-      "samples": 20,
-      "per_target": {
-        "Google": {
-          "ok": 5,
-          "fail": 0
-        },
-        "YouTube": {
-          "ok": 5,
-          "fail": 0
-        },
-        "Cloudflare": {
-          "ok": 5,
-          "fail": 0
-        },
-        "X.com": {
-          "ok": 5,
-          "fail": 0
-        }
-      }
-    },
-    {
-      "name": "🇺🇸 United States | 05",
-      "index": 5,
+      "name": "🇺🇸 United States | 03",
+      "index": 3,
       "protocol": "vless",
       "transport": "tcp-http",
       "security": "none",
@@ -257,9 +114,9 @@
       "flag": "🇺🇸",
       "error_rate": 0.0,
       "weighted_error_rate": 0.0,
-      "avg_latency_ms": 462.07,
-      "p50_ms": 430.07,
-      "p95_ms": 694.7,
+      "avg_latency_ms": 722.99,
+      "p50_ms": 625.19,
+      "p95_ms": 1257.17,
       "samples": 4,
       "per_target": {
         "Google": {
@@ -281,8 +138,8 @@
       }
     },
     {
-      "name": "🇺🇸 United States | 06",
-      "index": 6,
+      "name": "🇺🇸 United States | 04",
+      "index": 4,
       "protocol": "vless",
       "transport": "ws",
       "security": "none",
@@ -292,9 +149,9 @@
       "flag": "🇺🇸",
       "error_rate": 0.0,
       "weighted_error_rate": 0.0,
-      "avg_latency_ms": 1392.34,
-      "p50_ms": 911.92,
-      "p95_ms": 2756.34,
+      "avg_latency_ms": 852.2,
+      "p50_ms": 834.65,
+      "p95_ms": 1023.24,
       "samples": 4,
       "per_target": {
         "Google": {
@@ -311,76 +168,6 @@
         },
         "X.com": {
           "ok": 1,
-          "fail": 0
-        }
-      }
-    },
-    {
-      "name": "🇹🇷 Turkey | 07",
-      "index": 7,
-      "protocol": "vless",
-      "transport": "tcp",
-      "security": "reality",
-      "stealth_score": 0.815,
-      "country": "TR",
-      "country_name": "Turkey",
-      "flag": "🇹🇷",
-      "error_rate": 0.0,
-      "weighted_error_rate": 0.0,
-      "avg_latency_ms": 549.52,
-      "p50_ms": 476.99,
-      "p95_ms": 831.0,
-      "samples": 4,
-      "per_target": {
-        "Google": {
-          "ok": 1,
-          "fail": 0
-        },
-        "YouTube": {
-          "ok": 1,
-          "fail": 0
-        },
-        "Cloudflare": {
-          "ok": 1,
-          "fail": 0
-        },
-        "X.com": {
-          "ok": 1,
-          "fail": 0
-        }
-      }
-    },
-    {
-      "name": "🇹🇷 Turkey | 10",
-      "index": 10,
-      "protocol": "vless",
-      "transport": "tcp",
-      "security": "reality",
-      "stealth_score": 0.815,
-      "country": "TR",
-      "country_name": "Turkey",
-      "flag": "🇹🇷",
-      "error_rate": 0.0,
-      "weighted_error_rate": 0.0,
-      "avg_latency_ms": 222.5,
-      "p50_ms": 95.71,
-      "p95_ms": 498.9,
-      "samples": 20,
-      "per_target": {
-        "Google": {
-          "ok": 5,
-          "fail": 0
-        },
-        "YouTube": {
-          "ok": 5,
-          "fail": 0
-        },
-        "Cloudflare": {
-          "ok": 5,
-          "fail": 0
-        },
-        "X.com": {
-          "ok": 5,
           "fail": 0
         }
       }
